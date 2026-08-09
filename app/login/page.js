@@ -26,7 +26,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      router.push('/');
+      router.push('/admin');
       router.refresh();
     } catch {
       setError('সার্ভার সমস্যা হয়েছে');
@@ -46,7 +46,7 @@ export default function LoginPage() {
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="admin"
+          placeholder="username"
           required
         />
         <div className="mt8" />
@@ -62,9 +62,6 @@ export default function LoginPage() {
           {loading ? 'লগইন হচ্ছে...' : 'লগইন করুন'}
         </button>
         {error && <div className="msg err">{error}</div>}
-        <p className="muted center" style={{ fontSize: 13, marginTop: 18 }}>
-          Demo login: <b>admin</b> / <b>admin123</b>
-        </p>
       </form>
     </div>
   );

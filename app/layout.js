@@ -5,6 +5,13 @@ export const metadata = {
   description: 'আপনার দোকানের হিসাব, স্টক, বাকি ও bKash ম্যানেজমেন্ট',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="bn">
@@ -12,3 +19,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+

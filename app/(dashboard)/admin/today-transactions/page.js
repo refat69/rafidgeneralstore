@@ -54,7 +54,7 @@ export default function TodayTransactionsPage() {
           <h2>📅 আজকের লেনদেন ও হিসাব-নিকাশ</h2>
           <div className="sub">আজকের দিনের সকল কেনা-বেচা, নতুন মাল কেনা, রিচার্জ ও খরচের বিবরণী</div>
         </div>
-        <Link href="/" className="btn gray">🏠 ড্যাশবোর্ড</Link>
+        <Link href="/admin" className="btn gray">🏠 ড্যাশবোর্ড</Link>
       </div>
 
       {/* Summary Cards Row 1 */}
