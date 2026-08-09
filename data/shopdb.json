@@ -1,0 +1,21 @@
+{
+  "User": [
+    {
+      "_id": "5b393d686bfdceebf20eb2bc",
+      "username": "admin",
+      "password": "$2a$10$iPeYEWwIZH1TKmPvayH7bur5QakyIfsp6fPYs1SJdkJM2GIpcU1jK",
+      "name": "Admin",
+      "shopName": "আমার দোকান",
+      "createdAt": "2026-08-08T04:16:10.068Z",
+      "updatedAt": "2026-08-08T04:16:10.069Z"
+    }
+  ],
+  "Product": [],
+  "Sale": [],
+  "Baki": [],
+  "Bkash": [],
+  "Expense": [],
+  "Customer": [],
+  "StockLog": [],
+  "Recharge": []
+}

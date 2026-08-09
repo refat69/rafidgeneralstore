@@ -1,0 +1,3 @@
+- [x] Create Backend API endpoint `app/api/customers/[id]/route.js` to fetch details/sales and update profile.
+- [x] Implement frontend customer details modal and edit form in `app/(dashboard)/customers/page.js`.
+- [x] Verify the changes by manually checking details and editing a customer.
