@@ -1,3 +1,5 @@
-- [x] Create Backend API endpoint `app/api/customers/[id]/route.js` to fetch details/sales and update profile.
-- [x] Implement frontend customer details modal and edit form in `app/(dashboard)/customers/page.js`.
-- [x] Verify the changes by manually checking details and editing a customer.
+- [x] Create Backend API endpoint `app/api/customers/[id]/route.js`
+- [x] Add Search and Pagination on the Products/Stock Page
+- [x] Add Searchable Product Selector on the Sell Page
+- [x] Add Unit Price Override in the Cart on the Sell Page
+- [x] Verify all changes manually and test UI

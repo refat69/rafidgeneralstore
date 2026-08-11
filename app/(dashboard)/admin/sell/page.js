@@ -18,6 +18,10 @@ export default function SellPage() {
   const [customers, setCustomers] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // States for searchable product dropdown
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+
   // States for custom unregistered products
   const [newProdName, setNewProdName] = useState('');
   const [newProdBuy, setNewProdBuy] = useState('');
@@ -94,6 +98,16 @@ export default function SellPage() {
     );
   }
 
+  function updatePrice(id, price) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.productId !== id) return c;
+        const p = Number(price) || 0;
+        return { ...c, price: p, total: c.qty * p };
+      })
+    );
+  }
+
   function removeItem(id) {
     setCart((prev) => prev.filter((c) => c.productId !== id));
   }
@@ -106,6 +120,12 @@ export default function SellPage() {
     !customerName.trim() || 
     c.name.toLowerCase().includes(customerName.toLowerCase()) || 
     (c.phone && c.phone.includes(customerName))
+  );
+
+  const filteredProducts = products.filter(p =>
+    !productSearch.trim() ||
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    (p.category && p.category.toLowerCase().includes(productSearch.toLowerCase()))
   );
 
   async function submit() {
@@ -157,16 +177,83 @@ export default function SellPage() {
         {/* Left: product picker + cart */}
         <div className="card">
           <h3>১. পণ্য যোগ করুন</h3>
-          <div className="mt8">
+          <div className="mt8" style={{ position: 'relative' }}>
             <label style={{ fontSize: 13, fontWeight: 'bold' }}>তালিকা থেকে বাছাই করুন:</label>
-            <select defaultValue="" onChange={(e) => e.target.value && addProduct(e.target.value)}>
-              <option value="" disabled>— পণ্য বাছাই করুন —</option>
-              {products.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name} — {taka(p.sellPrice)} ({p.stockQty} {p.unit} আছে)
-                </option>
-              ))}
-            </select>
+            <div style={{ position: 'relative' }}>
+              <input 
+                value={productSearch} 
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setShowProductSuggestions(true);
+                }} 
+                onFocus={() => setShowProductSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                placeholder="পণ্য খুঁজুন বা সিলেক্ট করুন" 
+                autoComplete="off"
+                style={{ paddingRight: '30px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowProductSuggestions(!showProductSuggestions)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--muted)',
+                  fontSize: '10px',
+                  padding: '4px'
+                }}
+                onMouseDown={(e) => e.preventDefault()} // prevent blur
+              >
+                ▼
+              </button>
+            </div>
+            {showProductSuggestions && filteredProducts.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: '#ffffff',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                zIndex: 50,
+                maxHeight: '200px',
+                overflowY: 'auto',
+                marginTop: '4px'
+              }}>
+                {filteredProducts.map((p) => (
+                  <div 
+                    key={p._id}
+                    onClick={() => {
+                      addProduct(p._id);
+                      setProductSearch('');
+                      setShowProductSuggestions(false);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f1f5f9',
+                      fontSize: '14px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                    onMouseDown={(e) => e.preventDefault()} // prevent blur from closing before click
+                  >
+                    <span style={{ fontWeight: '600', color: 'var(--text)' }}>{p.name}</span>
+                    <span className="muted" style={{ fontSize: '12px' }}>
+                      {taka(p.sellPrice)} ({p.stockQty} {p.unit} আছে)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{ marginTop: 16, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px dashed var(--border)' }}>
@@ -206,7 +293,17 @@ export default function SellPage() {
                       {c.name}
                       {c.isNewProduct && <span className="badge amber" style={{ fontSize: 10, marginLeft: 6 }}>নতুন</span>}
                     </td>
-                    <td>{taka(c.price)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>৳</span>
+                        <input 
+                          type="number" 
+                          value={c.price} 
+                          onChange={(e) => updatePrice(c.productId, e.target.value)} 
+                          style={{ width: '65px', padding: '4px 6px', fontSize: '13.5px', borderRadius: '6px', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                    </td>
                     <td>
                       <div className="flex">
                         <button className="btn sm gray" onClick={() => updateQty(c.productId, c.qty - 1)}>−</button>

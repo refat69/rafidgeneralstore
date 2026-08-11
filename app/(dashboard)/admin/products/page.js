@@ -8,6 +8,11 @@ export default function ProductsPage() {
   const [form, setForm] = useState({ name: '', category: 'সাধারণ', unit: 'পিস', buyPrice: '', sellPrice: '', stockQty: '', lowStockAt: 5 });
   const [msg, setMsg] = useState(null);
 
+  // Search & Pagination States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   useEffect(() => { load(); }, []);
   function load() { fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {}); }
 
@@ -46,6 +51,16 @@ export default function ProductsPage() {
 
   const stockValue = products.reduce((a, p) => a + p.stockQty * p.buyPrice, 0);
   const lowCount = products.filter((p) => p.stockQty <= p.lowStockAt).length;
+
+  // Filter & Paginate Products
+  const filtered = products.filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const activePage = Math.min(currentPage, Math.max(1, totalPages));
+  const paginatedProducts = filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
 
   return (
     <div>
@@ -94,12 +109,36 @@ export default function ProductsPage() {
         </div>
 
         <div className="card">
-          <h3>📋 পণ্য তালিকা</h3>
+          <div className="flex between" style={{ alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+            <h3>📋 পণ্য তালিকা ({filtered.length} টি)</h3>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select 
+                value={itemsPerPage} 
+                onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                style={{ padding: '6px 10px', width: '80px', fontSize: '13px' }}
+              >
+                <option value={10}>10টি</option>
+                <option value={20}>20টি</option>
+                <option value={50}>50টি</option>
+                <option value={100}>100টি</option>
+              </select>
+            </div>
+          </div>
+          
+          <div style={{ marginBottom: 16 }}>
+            <input 
+              placeholder="🔍 পণ্য খুঁজুন (নাম বা ক্যাটাগরি)..." 
+              value={searchTerm} 
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '8px 12px', fontSize: '14px' }}
+            />
+          </div>
+
           <div className="table-wrap mt8">
             <table>
               <thead><tr><th>পণ্য</th><th>কিনা</th><th>বিক্রি</th><th>স্টক</th><th>মুনাফা/ইউনিট</th><th></th></tr></thead>
               <tbody>
-                {products.map((p) => {
+                {paginatedProducts.map((p) => {
                   const profit = p.sellPrice - p.buyPrice;
                   const low = p.stockQty <= p.lowStockAt;
                   return (
@@ -109,17 +148,39 @@ export default function ProductsPage() {
                       <td>{taka(p.sellPrice)}</td>
                       <td>
                         <span className={`badge ${low ? 'red' : 'green'}`}>{p.stockQty} {p.unit}</span>
-                        <button className="btn sm gray mt8" onClick={() => addStock(p._id)}>+ স্টক</button>
+                        <button className="btn sm gray mt8" style={{ display: 'block' }} onClick={() => addStock(p._id)}>+ স্টক</button>
                       </td>
                       <td className={profit >= 0 ? 'green' : 'red'}>{taka(profit)}</td>
                       <td><button className="btn sm red" onClick={() => remove(p._id)}>🗑</button></td>
                     </tr>
                   );
                 })}
-                {products.length === 0 && <tr><td colSpan={6} className="empty">কোনো পণ্য নেই</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={6} className="empty">কোনো পণ্য নেই</td></tr>}
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex center" style={{ gap: 12, justifyContent: 'center', marginTop: 20, alignItems: 'center' }}>
+              <button 
+                className="btn sm gray" 
+                disabled={activePage === 1} 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              >
+                ◀ পূর্ববর্তী
+              </button>
+              <span style={{ fontSize: 14, fontWeight: '600' }}>
+                পৃষ্ঠা {activePage} / {totalPages}
+              </span>
+              <button 
+                className="btn sm gray" 
+                disabled={activePage === totalPages} 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              >
+                পরবর্তী ▶
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
