@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { taka, num } from '@/lib/money';
+import toast from 'react-hot-toast';
 
 export default function SellPage() {
   const [products, setProducts] = useState([]);
@@ -12,7 +13,6 @@ export default function SellPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [note, setNote] = useState('');
   const [discount, setDiscount] = useState(0);
-  const [msg, setMsg] = useState(null);
   const [loading, setLoading] = useState(false);
   const [sales, setSales] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -30,13 +30,13 @@ export default function SellPage() {
   const [newProdStock, setNewProdStock] = useState('');
 
   useEffect(() => {
-    fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
-    fetch('/api/customers').then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => {});
+    fetch('/api/products?t=' + Date.now()).then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
+    fetch('/api/customers?t=' + Date.now()).then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => {});
     loadSales();
   }, []);
 
   function loadSales() {
-    fetch('/api/sales').then((r) => r.json()).then((d) => setSales(d.sales || [])).catch(() => {});
+    fetch('/api/sales?t=' + Date.now()).then((r) => r.json()).then((d) => setSales(d.sales || [])).catch(() => {});
   }
 
   function addProduct(id) {
@@ -57,7 +57,7 @@ export default function SellPage() {
 
   function addCustomProduct() {
     if (!newProdName.trim() || !newProdSell) {
-      alert('নতুন পণ্যের নাম ও বিক্রির দাম আবশ্যক!');
+      toast.error('নতুন পণ্যের নাম ও বিক্রির দাম আবশ্যক!');
       return;
     }
     const tempId = 'new-' + Date.now();
@@ -129,8 +129,7 @@ export default function SellPage() {
   );
 
   async function submit() {
-    setMsg(null);
-    if (cart.length === 0) { setMsg({ type: 'err', text: 'অন্তত একটি পণ্য যোগ করুন' }); return; }
+    if (cart.length === 0) { toast.error('অন্তত একটি পণ্য যোগ করুন'); return; }
     setLoading(true);
     const res = await fetch('/api/sales', {
       method: 'POST',
@@ -155,13 +154,13 @@ export default function SellPage() {
     });
     const data = await res.json();
     setLoading(false);
-    if (!res.ok) { setMsg({ type: 'err', text: data.error || 'সমস্যা হয়েছে' }); return; }
-    setMsg({ type: 'ok', text: '✅ বিক্রি সফল হয়েছে!' });
+    if (!res.ok) { toast.error(data.error || 'বিক্রি সম্পন্ন হতে সমস্যা হয়েছে'); return; }
+    toast.success('✅ বিক্রি সফল হয়েছে!');
     setCart([]); setPaidAmount(0); setDiscount(0); setCustomerName(''); setCustomerPhone(''); setNote('');
     loadSales();
     // reload products and customers lists
-    fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
-    fetch('/api/customers').then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => {});
+    fetch('/api/products?t=' + Date.now()).then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
+    fetch('/api/customers?t=' + Date.now()).then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => {});
   }
 
   return (
@@ -442,7 +441,6 @@ export default function SellPage() {
           <button className="btn green" style={{ width: '100%', marginTop: 16 }} onClick={submit} disabled={loading}>
             {loading ? 'হিসাব হচ্ছে...' : '✅ বিক্রি নিশ্চিত করুন'}
           </button>
-          {msg && <div className={`msg ${msg.type}`}>{msg.text}</div>}
         </div>
       </div>
 

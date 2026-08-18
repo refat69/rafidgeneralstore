@@ -3,6 +3,8 @@ import { connectDB } from '@/lib/db';
 import { Product, Sale, Bkash, Baki, Customer, StockLog } from '@/lib/models';
 import { getSessionUserId } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   if (!getSessionUserId()) return NextResponse.json({ error: 'না' }, { status: 401 });
   await connectDB();

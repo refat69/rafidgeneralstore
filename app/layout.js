@@ -1,4 +1,5 @@
 import './globals.css';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'দোকান ড্যাশবোর্ড | Shop Dashboard',
@@ -15,7 +16,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="bn">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster position="top-center" />
+      </body>
     </html>
   );
 }

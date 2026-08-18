@@ -3,6 +3,8 @@ import { connectDB } from '@/lib/db';
 import { Product, StockLog } from '@/lib/models';
 import { getSessionUserId } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   if (!getSessionUserId()) return NextResponse.json({ error: 'না' }, { status: 401 });
   await connectDB();
@@ -14,8 +16,20 @@ export async function POST(req) {
   if (!getSessionUserId()) return NextResponse.json({ error: 'না' }, { status: 401 });
   await connectDB();
   const body = await req.json();
+  
+  if (!body.name || !body.name.trim()) {
+    return NextResponse.json({ error: 'পণ্যের নাম আবশ্যক' }, { status: 400 });
+  }
+
+  // Case-insensitive duplicate check
+  const allProducts = await Product.find().lean();
+  const exists = allProducts.some(p => p.name.trim().toLowerCase() === body.name.trim().toLowerCase());
+  if (exists) {
+    return NextResponse.json({ error: 'এই পণ্যটি ইতিমধ্যে যুক্ত করা আছে!' }, { status: 400 });
+  }
+
   const p = await Product.create({
-    name: body.name,
+    name: body.name.trim(),
     category: body.category || 'সাধারণ',
     unit: body.unit || 'পিস',
     buyPrice: Number(body.buyPrice) || 0,

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { taka, num } from '@/lib/money';
+import toast from 'react-hot-toast';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({ name: '', category: 'সাধারণ', unit: 'পিস', buyPrice: '', sellPrice: '', stockQty: '', lowStockAt: 5 });
-  const [msg, setMsg] = useState(null);
 
   // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,20 +14,27 @@ export default function ProductsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => { load(); }, []);
-  function load() { fetch('/api/products').then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {}); }
+  function load() { 
+    fetch('/api/products?t=' + Date.now())
+      .then((r) => r.json())
+      .then((d) => setProducts(d.products || []))
+      .catch(() => {}); 
+  }
 
   function set(f) { setForm((p) => ({ ...p, ...f })); }
 
   async function add(e) {
     e.preventDefault();
-    setMsg(null);
     const res = await fetch('/api/products', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
     const data = await res.json();
-    if (!res.ok) { setMsg({ type: 'err', text: data.error }); return; }
-    setMsg({ type: 'ok', text: '✅ পণ্য যোগ হয়েছে' });
+    if (!res.ok) { 
+      toast.error(data.error || 'পণ্য যোগ করতে সমস্যা হয়েছে'); 
+      return; 
+    }
+    toast.success('✅ পণ্য সফলভাবে যোগ হয়েছে');
     setForm({ name: '', category: 'সাধারণ', unit: 'পিস', buyPrice: '', sellPrice: '', stockQty: '', lowStockAt: 5 });
     load();
   }
@@ -40,13 +47,24 @@ export default function ProductsPage() {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...p, stockQty: (num(p.stockQty) + num(qty)) }),
     });
-    if (res.ok) load();
+    const data = await res.json();
+    if (res.ok) {
+      toast.success('✅ স্টক সফলভাবে আপডেট করা হয়েছে');
+      load();
+    } else {
+      toast.error(data.error || 'স্টক আপডেট করতে সমস্যা হয়েছে');
+    }
   }
 
   async function remove(id) {
     if (!confirm('পণ্যটি মুছে ফেলবেন?')) return;
-    await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
-    load();
+    const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast.success('🗑 পণ্যটি মুছে ফেলা হয়েছে');
+      load();
+    } else {
+      toast.error('মুছে ফেলতে সমস্যা হয়েছে');
+    }
   }
 
   const stockValue = products.reduce((a, p) => a + p.stockQty * p.buyPrice, 0);
@@ -105,7 +123,6 @@ export default function ProductsPage() {
             </div>
             <button className="btn" style={{ gridColumn: '1 / -1' }}>পণ্য যোগ করুন</button>
           </form>
-          {msg && <div className={`msg ${msg.type}`}>{msg.text}</div>}
         </div>
 
         <div className="card">
