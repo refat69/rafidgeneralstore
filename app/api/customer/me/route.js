@@ -3,6 +3,8 @@ import { connectDB } from '@/lib/db';
 import { CustomerUser, Baki, Sale } from '@/lib/models';
 import { getCustomerSessionId } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req) {
   try {
     const cid = getCustomerSessionId();
