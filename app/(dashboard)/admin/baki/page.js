@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { taka, num } from '@/lib/money';
+import toast from 'react-hot-toast';
 
 export default function BakiPage() {
   const [baki, setBaki] = useState([]);
@@ -19,6 +20,9 @@ export default function BakiPage() {
   const [editForm, setEditForm] = useState({ name: '', phone: '' });
   const [editMsg, setEditMsg] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Custom Digital Payment Modal State
+  const [collectModal, setCollectModal] = useState({ open: false, customerName: '', amount: '', id: null, isModalContext: false });
 
   // New Baki Form State inside Profile Modal
   const [newBakiForm, setNewBakiForm] = useState({ amount: '', note: '' });
@@ -127,22 +131,39 @@ export default function BakiPage() {
     }
   }
 
-  async function handleCollectBakiInModal(id) {
-    const amt = prompt('কত টাকা জমা পেলেন?');
-    if (!amt) return;
+  function openCollectModal(customerName, id = null, isModalContext = false) {
+    setCollectModal({ open: true, customerName, amount: '', id, isModalContext });
+  }
+
+  async function submitCollectModal(e) {
+    e.preventDefault();
+    const amt = Number(collectModal.amount);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      toast.error('সঠিক টাকার পরিমাণ দিন');
+      return;
+    }
 
     try {
       const res = await fetch('/api/baki', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, paid: Number(amt) }),
+        body: JSON.stringify({ customerName: collectModal.customerName, id: collectModal.id, paid: amt }),
       });
+      const data = await res.json();
       if (res.ok) {
+        toast.success(`✅ ${taka(amt)} জমা গ্রহণ করা হয়েছে!`);
+        const cName = collectModal.customerName;
+        const wasInModal = collectModal.isModalContext;
+        setCollectModal({ open: false, customerName: '', amount: '', id: null, isModalContext: false });
         load(); // Refresh main list
-        openCustomerProfile(selectedCustomer.name); // Refresh modal data
+        if (wasInModal && cName) {
+          openCustomerProfile(cName); // Refresh modal data
+        }
+      } else {
+        toast.error(data.error || 'জমা নিতে সমস্যা হয়েছে');
       }
     } catch (e) {
-      console.error(e);
+      toast.error('সার্ভার সমস্যা হয়েছে');
     }
   }
 
@@ -153,20 +174,11 @@ export default function BakiPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
-    if (!res.ok) { setMsg({ type: 'err', text: 'সমস্যা হয়েছে' }); return; }
+    if (!res.ok) { setMsg({ type: 'err', text: 'সমস্যা হয়েছে' }); toast.error('বাকি যোগ করতে সমস্যা হয়েছে'); return; }
     setMsg({ type: 'ok', text: '✅ বাকি যোগ হয়েছে' });
+    toast.success('✅ বাকি যোগ হয়েছে');
     setForm({ customerName: '', customerPhone: '', amount: '', note: '' });
     load();
-  }
-
-  async function collect(id) {
-    const amt = prompt('কত টাকা জমা পেলেন?');
-    if (!amt) return;
-    const res = await fetch('/api/baki', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, paid: num(amt) }),
-    });
-    if (res.ok) load();
   }
 
   async function remove(id) {
@@ -248,7 +260,7 @@ export default function BakiPage() {
                         >
                           👁️
                         </button>
-                        {b.amount > 0 && <button className="btn sm green" onClick={() => collect(b._id)}>জমা</button>}
+                        {b.amount > 0 && <button className="btn sm green" onClick={() => openCollectModal(b.customerName, b._id, false)}>জমা</button>}
                         <button className="btn sm red" onClick={() => remove(b._id)}>🗑</button>
                       </div>
                     </td>
@@ -261,7 +273,70 @@ export default function BakiPage() {
         </div>
       </div>
 
-      {/* Customer Detail Profile Modal (Same structure as Customers page) */}
+      {/* Custom Digital Payment Collection Popup Modal */}
+      {collectModal.open && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }} onClick={() => setCollectModal({ ...collectModal, open: false })}>
+          <div className="modal-container" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#f8fafc', padding: '16px 20px' }}>
+              <h3 style={{ margin: 0, fontSize: 17, display: 'flex', alignItems: 'center', gap: 8 }}>
+                💰 বকেয়া জমা গ্রহণ
+              </h3>
+              <button 
+                className="btn sm red" 
+                onClick={() => setCollectModal({ ...collectModal, open: false })}
+                style={{ padding: '4px 8px', borderRadius: '50%' }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={submitCollectModal} style={{ padding: 20 }}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#1e40af' }}>গ্রাহকের নাম:</div>
+                <div style={{ fontSize: 16, fontWeight: 'bold', color: '#1e3a8a' }}>👤 {collectModal.customerName}</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', color: '#334155', display: 'block', marginBottom: 6 }}>
+                  জমা প্রাপ্ত টাকার পরিমাণ (৳)
+                </label>
+                <input 
+                  type="number"
+                  autoFocus
+                  required
+                  placeholder="যেমন: ৫০০"
+                  value={collectModal.amount}
+                  onChange={(e) => setCollectModal({ ...collectModal, amount: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    borderRadius: 8,
+                    border: '2px solid #3b82f6',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button 
+                  type="button" 
+                  className="btn gray" 
+                  onClick={() => setCollectModal({ ...collectModal, open: false })}
+                  style={{ padding: '10px 18px', fontSize: 14 }}
+                >
+                  বাতিল
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn green"
+                  style={{ padding: '10px 22px', fontSize: 14, fontWeight: 'bold' }}
+                >
+                  ✅ জমা নিশ্চিত করুন
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {selectedCustomer && (
         <div className="modal-backdrop" onClick={() => setSelectedCustomer(null)}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -369,44 +444,62 @@ export default function BakiPage() {
                     <div className="grid cols-2" style={{ gap: 20 }}>
                       <div>
                         <h4>🧾 বাকি খতিয়ান</h4>
-                        <div className="table-wrap mt8">
-                          <table style={{ fontSize: 13 }}>
-                            <thead>
-                              <tr>
-                                <th>তারিখ</th>
-                                <th>টাকা</th>
-                                <th>নোট</th>
-                                <th>অ্যাকশন</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {customerBakiRecords.map((b) => (
-                                <tr key={b._id}>
-                                  <td>{new Date(b.date || b.createdAt).toLocaleDateString('bn-BD')}</td>
-                                  <td className={b.amount > 0 ? 'amber' : 'red'}>
-                                    <b>{b.amount > 0 ? taka(b.amount) : '−' + taka(-b.amount)}</b>
-                                  </td>
-                                  <td className="muted">{b.note || '—'}</td>
-                                  <td>
-                                    {b.amount > 0 && (
-                                      <button 
-                                        className="btn sm green" 
-                                        onClick={() => handleCollectBakiInModal(b._id)}
-                                      >
-                                        জমা নিন
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                              {customerBakiRecords.length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="empty">কোনো বাকি পাওয়া যায়নি</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                        {(() => {
+                          const totalCustomerBaki = customerBakiRecords.reduce((sum, r) => sum + r.amount, 0);
+                          return (
+                            <div className="table-wrap mt8">
+                              <table style={{ fontSize: 13 }}>
+                                <thead>
+                                  <tr>
+                                    <th>তারিখ</th>
+                                    <th>টাকা (মোট)</th>
+                                    <th>বিবরণ/নোটস</th>
+                                    <th>অ্যাকশন</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {customerBakiRecords.length > 0 && (
+                                    <tr style={{ background: '#fefce8', fontWeight: 'bold' }}>
+                                      <td>
+                                        {new Date(customerBakiRecords[0].date || customerBakiRecords[0].createdAt).toLocaleDateString('bn-BD')}
+                                        <div className="muted" style={{ fontSize: 11, fontWeight: 'normal' }}>
+                                          ({customerBakiRecords.length} টি এন্ট্রি একসাথে)
+                                        </div>
+                                      </td>
+                                      <td className={totalCustomerBaki > 0 ? 'amber' : 'red'} style={{ fontSize: 15 }}>
+                                        <b>{totalCustomerBaki > 0 ? taka(totalCustomerBaki) : '−' + taka(-totalCustomerBaki)}</b>
+                                      </td>
+                                      <td className="muted">
+                                        <ul style={{ margin: 0, paddingLeft: 14, fontSize: 12, lineHeight: 1.4 }}>
+                                          {customerBakiRecords.map((b, idx) => (
+                                            <li key={b._id || idx}>
+                                              {b.note || 'বাকি'} ({taka(b.amount)}) - {new Date(b.date || b.createdAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </td>
+                                      <td>
+                                        {totalCustomerBaki > 0 && (
+                                          <button 
+                                            className="btn sm green" 
+                                            onClick={() => openCollectModal(selectedCustomer.name, customerBakiRecords[0]._id, true)}
+                                          >
+                                            জমা নিন
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {customerBakiRecords.length === 0 && (
+                                    <tr>
+                                      <td colSpan={4} className="empty">কোনো বাকি পাওয়া যায়নি</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>

@@ -21,6 +21,7 @@ export default function SellPage() {
   // States for searchable product dropdown
   const [productSearch, setProductSearch] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [customerBakiMap, setCustomerBakiMap] = useState({});
 
   // States for custom unregistered products
   const [newProdName, setNewProdName] = useState('');
@@ -32,6 +33,14 @@ export default function SellPage() {
   useEffect(() => {
     fetch('/api/products?t=' + Date.now()).then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
     fetch('/api/customers?t=' + Date.now()).then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => {});
+    fetch('/api/baki?t=' + Date.now()).then((r) => r.json()).then((d) => {
+      const map = {};
+      (d.baki || []).forEach(b => {
+        const key = (b.customerName || '').trim().toLowerCase();
+        map[key] = b.amount;
+      });
+      setCustomerBakiMap(map);
+    }).catch(() => {});
     loadSales();
   }, []);
 
@@ -362,6 +371,23 @@ export default function SellPage() {
                   ▼
                 </button>
               </div>
+              {customerName.trim() && (
+                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 'bold' }}>
+                  {customerBakiMap[customerName.trim().toLowerCase()] > 0 ? (
+                    <span className="amber" style={{ background: '#fef3c7', padding: '2px 8px', borderRadius: 4, border: '1px solid #f59e0b' }}>
+                      ⚠️ এই কাস্টমারের পূর্বের বাকি: {taka(customerBakiMap[customerName.trim().toLowerCase()])}
+                    </span>
+                  ) : customerBakiMap[customerName.trim().toLowerCase()] < 0 ? (
+                    <span className="blue" style={{ background: '#dbeafe', padding: '2px 8px', borderRadius: 4, border: '1px solid #3b82f6' }}>
+                      ℹ️ কাস্টমারের এডভান্স/দেনা: {taka(-customerBakiMap[customerName.trim().toLowerCase()])}
+                    </span>
+                  ) : (
+                    <span className="green" style={{ background: '#dcfce7', padding: '2px 8px', borderRadius: 4, border: '1px solid #22c55e' }}>
+                      ✅ কোনো বাকি নেই (০ ৳)
+                    </span>
+                  )}
+                </div>
+              )}
               {showSuggestions && customerSuggestions.length > 0 && (
                 <div style={{
                   position: 'absolute',
@@ -396,8 +422,15 @@ export default function SellPage() {
                       }}
                       onMouseDown={(e) => e.preventDefault()} // prevent blur from closing before click
                     >
-                      <span style={{ fontWeight: '600', color: 'var(--text)' }}>{c.name}</span>
-                      {c.phone && <span className="muted" style={{ fontSize: '11px' }}>{c.phone}</span>}
+                      <div>
+                        <span style={{ fontWeight: '600', color: 'var(--text)' }}>{c.name}</span>
+                        {c.phone && <span className="muted" style={{ fontSize: '11px', marginLeft: 6 }}>({c.phone})</span>}
+                      </div>
+                      {customerBakiMap[c.name.trim().toLowerCase()] > 0 && (
+                        <span className="red" style={{ fontSize: '12px', fontWeight: 'bold' }}>
+                          বাকি: {taka(customerBakiMap[c.name.trim().toLowerCase()])}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

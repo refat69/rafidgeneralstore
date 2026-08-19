@@ -21,8 +21,8 @@ export default function DashboardPage() {
           <div className="sub">আপনার দোকানের ওভারঅল হিসাব-নিকাশ</div>
         </div>
         <div className="flex" style={{ gap: 10 }}>
-          <Link href="/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
-          <Link href="/sell" className="btn green">+ নতুন বিক্রি</Link>
+          <Link href="/admin/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
+          <Link href="/admin/sell" className="btn green">+ নতুন বিক্রি</Link>
         </div>
       </div>
 
@@ -90,10 +90,10 @@ export default function DashboardPage() {
         <div className="card">
           <h3>🔗 দ্রুত কাজ</h3>
           <div className="grid cols-2 mt8">
-            <Link href="/sell" className="btn">🛒 বিক্রি</Link>
-            <Link href="/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
-            <Link href="/recharge" className="btn gray">⚡ রিচার্জ</Link>
-            <Link href="/bkash" className="btn gray">📱 bKash</Link>
+            <Link href="/admin/sell" className="btn">🛒 বিক্রি</Link>
+            <Link href="/admin/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
+            <Link href="/admin/recharge" className="btn gray">⚡ রিচার্জ</Link>
+            <Link href="/admin/bkash" className="btn gray">📱 bKash</Link>
           </div>
         </div>
 

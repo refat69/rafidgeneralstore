@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { taka } from '@/lib/money';
+import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -18,6 +19,9 @@ export default function CustomersPage() {
   const [editForm, setEditForm] = useState({ name: '', phone: '' });
   const [editMsg, setEditMsg] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Custom Digital Payment Modal State
+  const [collectModal, setCollectModal] = useState({ open: false, customerName: '', amount: '', id: null });
 
   // New Baki Form State inside Profile
   const [newBakiForm, setNewBakiForm] = useState({ amount: '', note: '' });
@@ -73,13 +77,16 @@ export default function CustomersPage() {
       const data = await res.json();
       if (res.ok) {
         setEditMsg({ type: 'ok', text: '✅ প্রোফাইল সফলভাবে আপডেট হয়েছে!' });
+        toast.success('✅ প্রোফাইল সফলভাবে আপডেট হয়েছে!');
         setSelectedCustomer({ ...selectedCustomer, name: editForm.name, phone: editForm.phone });
         loadCustomers();
       } else {
         setEditMsg({ type: 'err', text: data.error || 'আপডেট করতে সমস্যা হয়েছে' });
+        toast.error(data.error || 'আপডেট করতে সমস্যা হয়েছে');
       }
     } catch (e) {
       setEditMsg({ type: 'err', text: 'সার্ভার সমস্যা হয়েছে' });
+      toast.error('সার্ভার সমস্যা হয়েছে');
     } finally {
       setSavingProfile(false);
     }
@@ -105,35 +112,52 @@ export default function CustomersPage() {
       const data = await res.json();
       if (res.ok) {
         setBakiMsg({ type: 'ok', text: '✅ নতুন বাকি রেকর্ড যোগ হয়েছে' });
+        toast.success('✅ নতুন বাকি রেকর্ড যোগ হয়েছে');
         setNewBakiForm({ amount: '', note: '' });
         // Reload details for this customer
         openCustomerProfile(selectedCustomer);
       } else {
         setBakiMsg({ type: 'err', text: data.error || 'সমস্যা হয়েছে' });
+        toast.error(data.error || 'সমস্যা হয়েছে');
       }
     } catch (e) {
       setBakiMsg({ type: 'err', text: 'সার্ভার সমস্যা হয়েছে' });
+      toast.error('সার্ভার সমস্যা হয়েছে');
     } finally {
       setSavingBaki(false);
     }
   }
 
-  async function handleCollectBaki(id) {
-    const amt = prompt('কত টাকা জমা পেলেন?');
-    if (!amt) return;
+  function openCollectModal(id = null) {
+    setCollectModal({ open: true, customerName: selectedCustomer.name, amount: '', id });
+  }
+
+  async function submitCollectModal(e) {
+    e.preventDefault();
+    const amt = Number(collectModal.amount);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      toast.error('সঠিক টাকার পরিমাণ দিন');
+      return;
+    }
 
     try {
       const res = await fetch('/api/baki', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, paid: Number(amt) }),
+        body: JSON.stringify({ customerName: collectModal.customerName, id: collectModal.id, paid: amt }),
       });
+      const data = await res.json();
       if (res.ok) {
-        // Reload details for this customer
-        openCustomerProfile(selectedCustomer);
+        toast.success(`✅ ${taka(amt)} জমা গ্রহণ করা হয়েছে!`);
+        setCollectModal({ open: false, customerName: '', amount: '', id: null });
+        if (selectedCustomer) {
+          openCustomerProfile(selectedCustomer);
+        }
+      } else {
+        toast.error(data.error || 'জমা নিতে সমস্যা হয়েছে');
       }
     } catch (e) {
-      console.error(e);
+      toast.error('সার্ভার সমস্যা হয়েছে');
     }
   }
 
@@ -200,6 +224,71 @@ export default function CustomersPage() {
           </table>
         </div>
       </div>
+
+      {/* Custom Digital Payment Collection Popup Modal */}
+      {collectModal.open && (
+        <div className="modal-backdrop" style={{ zIndex: 1100 }} onClick={() => setCollectModal({ ...collectModal, open: false })}>
+          <div className="modal-container" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: '#f8fafc', padding: '16px 20px' }}>
+              <h3 style={{ margin: 0, fontSize: 17, display: 'flex', alignItems: 'center', gap: 8 }}>
+                💰 বকেয়া জমা গ্রহণ
+              </h3>
+              <button 
+                className="btn sm red" 
+                onClick={() => setCollectModal({ ...collectModal, open: false })}
+                style={{ padding: '4px 8px', borderRadius: '50%' }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={submitCollectModal} style={{ padding: 20 }}>
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#1e40af' }}>গ্রাহকের নাম:</div>
+                <div style={{ fontSize: 16, fontWeight: 'bold', color: '#1e3a8a' }}>👤 {collectModal.customerName}</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 14, fontWeight: '600', color: '#334155', display: 'block', marginBottom: 6 }}>
+                  জমা প্রাপ্ত টাকার পরিমাণ (৳)
+                </label>
+                <input 
+                  type="number"
+                  autoFocus
+                  required
+                  placeholder="যেমন: ৫০০"
+                  value={collectModal.amount}
+                  onChange={(e) => setCollectModal({ ...collectModal, amount: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                    borderRadius: 8,
+                    border: '2px solid #3b82f6',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button 
+                  type="button" 
+                  className="btn gray" 
+                  onClick={() => setCollectModal({ ...collectModal, open: false })}
+                  style={{ padding: '10px 18px', fontSize: 14 }}
+                >
+                  বাতিল
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn green"
+                  style={{ padding: '10px 22px', fontSize: 14, fontWeight: 'bold' }}
+                >
+                  ✅ জমা নিশ্চিত করুন
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Customer Profile & Transaction History Modal */}
       {selectedCustomer && (
@@ -309,44 +398,62 @@ export default function CustomersPage() {
                     <div className="grid cols-2" style={{ gap: 20 }}>
                       <div>
                         <h4>🧾 বাকি খতিয়ান</h4>
-                        <div className="table-wrap mt8">
-                          <table style={{ fontSize: 13 }}>
-                            <thead>
-                              <tr>
-                                <th>তারিখ</th>
-                                <th>টাকা</th>
-                                <th>নোট</th>
-                                <th>অ্যাকশন</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {bakiRecords.map((b) => (
-                                <tr key={b._id}>
-                                  <td>{new Date(b.date || b.createdAt).toLocaleDateString('bn-BD')}</td>
-                                  <td className={b.amount > 0 ? 'amber' : 'red'}>
-                                    <b>{b.amount > 0 ? taka(b.amount) : '−' + taka(-b.amount)}</b>
-                                  </td>
-                                  <td className="muted">{b.note || '—'}</td>
-                                  <td>
-                                    {b.amount > 0 && (
-                                      <button 
-                                        className="btn sm green" 
-                                        onClick={() => handleCollectBaki(b._id)}
-                                      >
-                                        জমা নিন
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                              {bakiRecords.length === 0 && (
-                                <tr>
-                                  <td colSpan={4} className="empty">কোনো বাকি পাওয়া যায়নি</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                        {(() => {
+                          const totalCustomerBaki = bakiRecords.reduce((sum, r) => sum + r.amount, 0);
+                          return (
+                            <div className="table-wrap mt8">
+                              <table style={{ fontSize: 13 }}>
+                                <thead>
+                                  <tr>
+                                    <th>তারিখ</th>
+                                    <th>টাকা (মোট)</th>
+                                    <th>বিবরণ/নোটস</th>
+                                    <th>অ্যাকশন</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {bakiRecords.length > 0 && (
+                                    <tr style={{ background: '#fefce8', fontWeight: 'bold' }}>
+                                      <td>
+                                        {new Date(bakiRecords[0].date || bakiRecords[0].createdAt).toLocaleDateString('bn-BD')}
+                                        <div className="muted" style={{ fontSize: 11, fontWeight: 'normal' }}>
+                                          ({bakiRecords.length} টি এন্ট্রি একসাথে)
+                                        </div>
+                                      </td>
+                                      <td className={totalCustomerBaki > 0 ? 'amber' : 'red'} style={{ fontSize: 15 }}>
+                                        <b>{totalCustomerBaki > 0 ? taka(totalCustomerBaki) : '−' + taka(-totalCustomerBaki)}</b>
+                                      </td>
+                                      <td className="muted">
+                                        <ul style={{ margin: 0, paddingLeft: 14, fontSize: 12, lineHeight: 1.4 }}>
+                                          {bakiRecords.map((b, idx) => (
+                                            <li key={b._id || idx}>
+                                              {b.note || 'বাকি'} ({taka(b.amount)}) - {new Date(b.date || b.createdAt).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </td>
+                                      <td>
+                                        {totalCustomerBaki > 0 && (
+                                          <button 
+                                            className="btn sm green" 
+                                            onClick={() => openCollectModal(bakiRecords[0]._id)}
+                                          >
+                                            জমা নিন
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {bakiRecords.length === 0 && (
+                                    <tr>
+                                      <td colSpan={4} className="empty">কোনো বাকি পাওয়া যায়নি</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>

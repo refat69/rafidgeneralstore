@@ -35,8 +35,8 @@ export default function RechargePage() {
   async function submit(e) {
     e.preventDefault();
     setMsg(null);
-    if (!phone || !amount) {
-      setMsg({ type: 'err', text: 'ফোন নম্বর এবং রিচার্জের পরিমাণ দিন' });
+    if (!amount) {
+      setMsg({ type: 'err', text: 'রিচার্জের পরিমাণ দিন' });
       return;
     }
     setLoading(true);
@@ -85,9 +85,8 @@ export default function RechargePage() {
           <h3>➕ নতুন রিচার্জ যোগ করুন</h3>
           <form className="form-grid mt8" onSubmit={submit}>
             <div>
-              <label>মোবাইল নম্বর</label>
+              <label>মোবাইল নম্বর (ঐচ্ছিক)</label>
               <input
-                required
                 placeholder="01XXXXXXXXX"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}

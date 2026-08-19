@@ -16,7 +16,7 @@ export async function POST(req) {
   const body = await req.json();
   const { phone, operator, amount, commission } = body;
 
-  if (!phone || !operator || !amount) {
+  if (!operator || !amount) {
     return NextResponse.json({ error: 'সকল তথ্য প্রদান করুন' }, { status: 400 });
   }
 
@@ -24,7 +24,7 @@ export async function POST(req) {
   const comm = commission !== undefined ? Number(commission) : (amt * 0.028); // 28 tk commission per 1000 recharge
 
   const rec = await Recharge.create({
-    phone,
+    phone: phone || '',
     operator,
     amount: amt,
     commission: comm,
