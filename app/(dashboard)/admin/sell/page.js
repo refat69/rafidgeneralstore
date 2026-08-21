@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { taka, num } from '@/lib/money';
 import toast from 'react-hot-toast';
 
@@ -179,6 +180,9 @@ export default function SellPage() {
           <h2>🛒 নতুন বিক্রি</h2>
           <div className="sub">বিক্রি করুন এবং হিসাব রাখুন</div>
         </div>
+        <Link href="/admin/sales-history" className="btn gray">
+          📜 বিক্রির ইতিহাস ও তালিকা ➔
+        </Link>
       </div>
 
       <div className="grid cols-2">

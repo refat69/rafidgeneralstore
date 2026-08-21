@@ -8,6 +8,7 @@ const nav = [
   { href: '/admin', label: 'ড্যাশবোর্ড', en: 'Dashboard', icon: '📊' },
   { href: '/admin/today-transactions', label: 'আজকের লেনদেন', en: 'Today Txns', icon: '📅' },
   { href: '/admin/sell', label: 'বিক্রি', en: 'Sell', icon: '🛒' },
+  { href: '/admin/sales-history', label: 'বিক্রি ইতিহাস', en: 'Sales History', icon: '📜' },
   { href: '/admin/products', label: 'স্টক / পণ্য', en: 'Stock', icon: '📦' },
   { href: '/admin/recharge', label: 'মোবাইল রিচার্জ', en: 'Recharge', icon: '⚡' },
   { href: '/admin/baki', label: 'বাকি / পাওনা', en: 'Baki', icon: '🧾' },
