@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import InstallAppButton from '@/app/InstallAppButton';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,8 +39,8 @@ export default function LoginPage() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 42 }}>🏪</div>
-          <h1>দোকান ড্যাশবোর্ড</h1>
+          <img src="/icons/icon-192.png" alt="Rafid General Store" width="72" height="72" style={{ borderRadius: 18, boxShadow: '0 10px 24px rgba(37,99,235,0.35)', marginBottom: 8 }} />
+          <h1>রাফিদ জেনারেল স্টোর</h1>
           <div className="sub">আপনার দোকানের হিসাব সব এক জায়গায়</div>
         </div>
         <label>ইউজারনেম / Username</label>
@@ -63,6 +64,9 @@ export default function LoginPage() {
         </button>
         {error && <div className="msg err">{error}</div>}
       </form>
+      <div style={{ marginTop: 18, width: '100%', maxWidth: 400 }}>
+        <InstallAppButton />
+      </div>
     </div>
   );
 }

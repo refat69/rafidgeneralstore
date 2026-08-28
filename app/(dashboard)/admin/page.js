@@ -26,6 +26,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="app-note">
+        <span className="app-note-dot" /> 💾 সব হিসাব স্বয়ংক্রিয়ভাবে সেভ হচ্ছে — ফাইল: <b>data/shopdb.json</b>
+      </div>
+
       {!stats ? (
         <div className="empty mt">লোড হচ্ছে...</div>
       ) : (

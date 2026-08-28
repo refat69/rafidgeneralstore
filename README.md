@@ -1,6 +1,15 @@
-# 🏪 দোকান ড্যাশবোর্ড — Shop Dashboard
+# 🏪 রাফিদ জেনারেল স্টোর — দোকান ড্যাশবোর্ড (Mobile App)
 
-Next.js + MongoDB দিয়ে বানানো দোকানের হিসাব ম্যানেজমেন্ট সিস্টেম।
+Next.js + MongoDB দিয়ে বানানো দোকানের হিসাব ম্যানেজমেন্ট সিস্টেম। এটি এখন **মোবাইল অ্যাপ (PWA)** হিসেবে ইনস্টল করা যায় — ফোনের হোম স্ক্রিনে যোগ করলে সাধারণ অ্যাপের মতো দেখায় ও চলে।
+
+## 📱 মোবাইল অ্যাপ হিসেবে ব্যবহার
+
+1. ওয়েবসাইট ফোনের ব্রাউজারে খোলো।
+2. **Android/Chrome:** ব্রাউজারের মেনু → **"Add to Home Screen" / "Install app"** চাপলে হোম স্ক্রিনে অ্যাপ আইকন তৈরি হবে।
+3. **iPhone/Safari:** নিচের **Share (⬆️)** বাটন → **"Add to Home Screen"** চাপো।
+4. তারপর হোম স্ক্রিন থেকে ওপেন করলে পূর্ণ স্ক্রিন অ্যাপের মতো চলবে, নিচে **অ্যাপ-স্টাইল নেভিগেশন বার** (হোম, বিক্রি, বাকি, বিকাশ, আরও) থাকবে।
+
+> অ্যাপ ইন্সটল করা হলে **অফলাইনেও** ড্যাশবোর্ড খোলা যাবে — ইন্টারনেট থাকলে লাইভ ডেটা আপডেট হবে।
 
 ## ✨ ফিচার / Features
 
@@ -15,23 +24,21 @@ Next.js + MongoDB দিয়ে বানানো দোকানের হ�
 | 📈 **Report** | মোট লাভ (নিট মুনাফা), গত ১৪ দিনের বিক্রির চার্ট, সেরা পণ্য, খরচ বিশ্লেষণ |
 
 ## 🔐 লগইন
+
 - **ইউজারনেম:** `admin`
 - **পাসওয়ার্ড:** `admin123`
 
 > ⚠️ Production-এ ব্যবহারের আগে অবশ্যই পাসওয়ার্ড বদলে নাও।
 
-## 🚀 চালানোর নিয়ম
+## 💾 ডেটা কোথায় থাকে? (Real Data)
 
-### লোকাল ডেভেলপমেন্ট (বিল্ট-ইন MongoDB)
-```bash
-npm install
-npm run dev
-```
-খুলবে: http://localhost:3000
+সবচেয়ে গুরুত্বপূর্ণ: **ডিফল্টতেই তোমার ডেটা স্থায়ীভাবে সেভ হয়** `data/shopdb.json` ফাইলে। সার্ভার বন্ধ করলেও ডেটা হারাবে না।
 
-প্রথমবার চালালে একটি **in-memory MongoDB** (mongodb-memory-server) শুরু হবে — কোথাও সেটআপ লাগে না। শুরুতেই sample ডেটা (পণ্য, বিক্রি, বাকি, bKash, খরচ) নিজে থেকে ঢুকে যায়।
+- কোনো MongoDB সেটআপ **লাগবে না** — `npm run dev` চালালেই সব কাজ করবে।
+- ডেটা ফাইল `data/shopdb.json` — এটা কার্যত তোমার পুরো দোকানের হিসাবের ব্যাকআপ।
 
-### বাস্তব MongoDB (Atlas) দিয়ে
+### MongoDB Atlas (ক্লাউড ডেটা) — ঐচ্ছিক
+
 মনে করো তুমি **MongoDB Atlas** (free tier) ব্যবহার করতে চাও। তাহলে:
 
 1. [cloud.mongodb.com](https://cloud.mongodb.com) এ free cluster বানাও
@@ -42,7 +49,16 @@ npm run dev
 MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net" npm run dev
 ```
 
-একবার বাস্তব MongoDB-তে দিলে ডেটা স্থায়ীভাবে সংরক্ষিত থাকবে — সার্ভার বন্ধ করলেও হারাবে না। (in-memory MongoDB রিস্টার্টে ডেটা হারায়)
+> `MONGODB_URI` **না দিলে** ডিফল্টে `data/shopdb.json`-এ সব সেভ হয়। এটাই সবচেয়ে নিরাপদ ও সহজ।
+
+## 🚀 চালানোর নিয়ম
+
+### লোকাল ডেভেলপমেন্ট
+```bash
+npm install
+npm run dev
+```
+খুলবে: http://localhost:3000
 
 ### প্রোডাকশন বিল্ড
 ```bash
@@ -51,26 +67,31 @@ npm start
 ```
 
 ## 🔑 গুরুত্বপূর্ণ Environment Variables
+
 | ভেরিয়েবল | ব্যবহার | ডিফল্ট |
 |---|---|---|
-| `MONGODB_URI` | বাস্তব MongoDB-র connection string | (খালি → in-memory) |
+| `MONGODB_URI` | বাস্তব MongoDB (Atlas) connection string | (খালি → `data/shopdb.json`) |
 | `AUTH_SECRET` | লগইন session signature-এর key | shop-dashboard-secret-change-me |
+| `USE_MEMORY_DB` | শুধু টেস্টের জন্য in-memory DB (`1` দিলে) | (খালি) |
 
-> **দারুণ নিরাপত্তা:** `AUTH_SECRET`-এ অবশ্যই নিজের মতো লম্বা র্যান্ডম স্ট্রিং দাও।
+> **নিরাপত্তা:** `AUTH_SECRET`-এ অবশ্যই নিজের মতো লম্বা র্যান্ডম স্ট্রিং দাও।
 
 ## 📁 প্রজেক্ট স্ট্রাকচার
+
 ```
-shop-dashboard/
+rafidgeneralstore/
 ├─ app/
 │  ├─ api/                 # সব API routes
-│  │  ├─ auth/  products/  sales/  baki/  bkash/  expense/  stats/  report/
-│  ├─ login/page.js        # লগইন পেজ
-│  └─ (dashboard)/         # sidebar ও সব মডিউল পেজ
+│  ├─ manifest.js          # PWA/app install manifest
+│  ├─ (dashboard)/         # sidebar ও সব মডিউল পেজ
+│  └─ login/page.js        # লগইন পেজ
+├─ public/
+│  ├─ sw.js                # Service Worker (offline)
+│  └─ icons/               # App icon
 ├─ lib/
-│  ├─ db.js                # MongoDB সংযোগ (in-memory / real)
-│  ├─ models.js            # Mongoose models
+│  ├─ db.js                # ডেটা সংযোগ (JSON / MongoDB)
+│  ├─ models.js            # Models
 │  ├─ auth.js              # session logic
-│  ├─ seed.js              # sample ডেটা
-│  └─ money.js             # টাকা ফরম্যাটিং
-└─ next.config.mjs
+│  └─ seed.js              # default admin user
+└─ data/shopdb.json        # 💾 তোমার দোকানের রিয়েল ডেটা
 ```
