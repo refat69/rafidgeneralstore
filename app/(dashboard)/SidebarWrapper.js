@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 const nav = [
   { href: '/admin', label: 'ড্যাশবোর্ড', en: 'Dashboard', icon: '📊' },
+  { href: '/admin/orders', label: 'অনলাইন অর্ডার', en: 'Orders', icon: '🚚' },
   { href: '/admin/today-transactions', label: 'আজকের লেনদেন', en: 'Today Txns', icon: '📅' },
   { href: '/admin/sell', label: 'বিক্রি', en: 'Sell', icon: '🛒' },
   { href: '/admin/sales-history', label: 'বিক্রি ইতিহাস', en: 'Sales History', icon: '📜' },

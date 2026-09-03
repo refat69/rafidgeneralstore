@@ -12,7 +12,6 @@ export default function SellPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [note, setNote] = useState('');
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sales, setSales] = useState([]);
@@ -118,11 +117,22 @@ export default function SellPage() {
     );
   }
 
+  function updateTotal(id, totalVal) {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.productId !== id) return c;
+        const tot = Number(totalVal) || 0;
+        const p = c.qty > 0 ? tot / c.qty : tot;
+        return { ...c, total: tot, price: p };
+      })
+    );
+  }
+
   function removeItem(id) {
     setCart((prev) => prev.filter((c) => c.productId !== id));
   }
 
-  const subtotal = cart.reduce((a, c) => a + c.total, 0);
+  const subtotal = cart.reduce((a, c) => a + (Number(c.total) || 0), 0);
   const grandTotal = Math.max(0, subtotal - (num(discount) || 0));
   const due = Math.max(0, grandTotal - (num(paidAmount) || 0));
 
@@ -149,6 +159,7 @@ export default function SellPage() {
           productId: c.isNewProduct ? undefined : c.productId,
           qty: c.qty,
           price: c.price,
+          total: c.total,
           buyPrice: c.buyPrice,
           isNewProduct: c.isNewProduct,
           name: c.name,
@@ -159,14 +170,13 @@ export default function SellPage() {
         paymentMethod,
         customerName,
         customerPhone,
-        note,
       }),
     });
     const data = await res.json();
     setLoading(false);
     if (!res.ok) { toast.error(data.error || 'বিক্রি সম্পন্ন হতে সমস্যা হয়েছে'); return; }
     toast.success('✅ বিক্রি সফল হয়েছে!');
-    setCart([]); setPaidAmount(0); setDiscount(0); setCustomerName(''); setCustomerPhone(''); setNote('');
+    setCart([]); setPaidAmount(0); setDiscount(0); setCustomerName(''); setCustomerPhone('');
     loadSales();
     // reload products and customers lists
     fetch('/api/products?t=' + Date.now()).then((r) => r.json()).then((d) => setProducts(d.products || [])).catch(() => {});
@@ -323,7 +333,17 @@ export default function SellPage() {
                         <button className="btn sm gray" onClick={() => updateQty(c.productId, c.qty + 1)}>+</button>
                       </div>
                     </td>
-                    <td><b>{taka(c.total)}</b></td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>৳</span>
+                        <input 
+                          type="number" 
+                          value={c.total} 
+                          onChange={(e) => updateTotal(c.productId, e.target.value)} 
+                          style={{ width: '80px', padding: '4px 6px', fontSize: '13.5px', fontWeight: 'bold', borderRadius: '6px', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                    </td>
                     <td><button className="btn sm red" onClick={() => removeItem(c.productId)}>✕</button></td>
                   </tr>
                 ))}
@@ -451,10 +471,6 @@ export default function SellPage() {
                 <option value="bkash">bKash</option>
                 <option value="both">নগদ + bKash</option>
               </select>
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label>নোট</label>
-              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ঐচ্ছিক নোট" />
             </div>
           </div>
 

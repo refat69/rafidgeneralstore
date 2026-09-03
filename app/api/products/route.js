@@ -6,7 +6,6 @@ import { getSessionUserId } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  if (!getSessionUserId()) return NextResponse.json({ error: 'না' }, { status: 401 });
   await connectDB();
   const products = await Product.find().sort({ createdAt: -1 }).lean();
   return NextResponse.json({ products });
@@ -36,6 +35,8 @@ export async function POST(req) {
     sellPrice: Number(body.sellPrice) || 0,
     stockQty: Number(body.stockQty) || 0,
     lowStockAt: Number(body.lowStockAt) || 5,
+    imageUrl: body.imageUrl || '',
+    description: body.description || '',
   });
   if (p.stockQty > 0) {
     await StockLog.create({
@@ -63,6 +64,8 @@ export async function PUT(req) {
       sellPrice: Number(body.sellPrice) || 0,
       stockQty: Number(body.stockQty) || 0,
       lowStockAt: Number(body.lowStockAt) || 5,
+      imageUrl: body.imageUrl || '',
+      description: body.description || '',
     },
     { new: true }
   );

@@ -5,7 +5,6 @@ import { taka, num } from '@/lib/money';
 
 export default function RechargePage() {
   const [recharges, setRecharges] = useState([]);
-  const [phone, setPhone] = useState('');
   const [operator, setOperator] = useState('GP');
   const [rechargeType, setRechargeType] = useState('regular'); // regular | package
   const [amount, setAmount] = useState('');
@@ -45,7 +44,6 @@ export default function RechargePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        phone,
         operator,
         amount: Number(amount),
         commission: Number(commission),
@@ -61,7 +59,6 @@ export default function RechargePage() {
     }
 
     setMsg({ type: 'ok', text: '⚡ রিচার্জ সফলভাবে যোগ হয়েছে!' });
-    setPhone('');
     setAmount('');
     setCommission('');
     load();
@@ -84,14 +81,6 @@ export default function RechargePage() {
         <div className="card">
           <h3>➕ নতুন রিচার্জ যোগ করুন</h3>
           <form className="form-grid mt8" onSubmit={submit}>
-            <div>
-              <label>মোবাইল নম্বর (ঐচ্ছিক)</label>
-              <input
-                placeholder="01XXXXXXXXX"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
             <div>
               <label>অপারেটর</label>
               <select value={operator} onChange={(e) => setOperator(e.target.value)}>
@@ -159,7 +148,6 @@ export default function RechargePage() {
               <thead>
                 <tr>
                   <th>তারিখ</th>
-                  <th>মোবাইল নম্বর</th>
                   <th>অপারেটর</th>
                   <th>পরিমাণ</th>
                   <th>কমিশন</th>
@@ -169,7 +157,6 @@ export default function RechargePage() {
                 {recharges.map((r) => (
                   <tr key={r._id}>
                     <td>{new Date(r.date).toLocaleDateString('bn-BD')}</td>
-                    <td><b>{r.phone}</b></td>
                     <td><span className="badge blue">{r.operator}</span></td>
                     <td><b>{taka(r.amount)}</b></td>
                     <td className="green"><b>{taka(r.commission)}</b></td>
@@ -177,7 +164,7 @@ export default function RechargePage() {
                 ))}
                 {recharges.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="empty">
+                    <td colSpan={4} className="empty">
                       কোনো রিচার্জের রেকর্ড পাওয়া যায়নি
                     </td>
                   </tr>
