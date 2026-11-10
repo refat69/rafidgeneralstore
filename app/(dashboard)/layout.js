@@ -8,7 +8,10 @@ export default async function DashboardLayout({ children }) {
   const uid = requireAuth();
   await connectDB();
   await seedIfEmpty();
-  const user = await User.findById(uid);
+  let user = await User.findById(uid);
+  if (user) {
+    user = JSON.parse(JSON.stringify(user));
+  }
 
   return (
     <SidebarWrapper user={user}>

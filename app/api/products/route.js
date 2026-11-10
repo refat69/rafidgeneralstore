@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Product, StockLog } from '@/lib/models';
+import { Product, StockLog, Sale } from '@/lib/models';
 import { getSessionUserId } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,26 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   await connectDB();
   const products = await Product.find().sort({ createdAt: -1 }).lean();
-  return NextResponse.json({ products });
+  const sales = await Sale.find().lean();
+
+  const soldMap = {};
+  for (const s of sales) {
+    if (s.items && Array.isArray(s.items)) {
+      for (const item of s.items) {
+        if (item.productId) {
+          const pid = String(item.productId);
+          soldMap[pid] = (soldMap[pid] || 0) + (Number(item.qty) || 1);
+        }
+      }
+    }
+  }
+
+  const productsWithSales = products.map((p) => ({
+    ...p,
+    soldCount: soldMap[String(p._id)] || 0,
+  }));
+
+  return NextResponse.json({ products: productsWithSales });
 }
 
 export async function POST(req) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Product, Sale, Bkash, Expense } from '@/lib/models';
+import { Product, Sale, Bkash, Expense, Recharge } from '@/lib/models';
 import { getSessionUserId } from '@/lib/auth';
 
 export async function GET() {
@@ -10,11 +10,15 @@ export async function GET() {
   const products = await Product.find().lean();
   const sales = await Sale.find().lean();
   const expenses = await Expense.find().lean();
+  const bkash = await Bkash.find().lean();
+  const recharges = await Recharge.find().lean();
 
   const totalSales = sales.reduce((a, s) => a + s.totalAmount, 0);
   const totalPaid = sales.reduce((a, s) => a + s.paidAmount, 0);
   const totalDue = sales.reduce((a, s) => a + s.dueAmount, 0);
   const totalExpense = expenses.reduce((a, e) => a + e.amount, 0);
+  const bkashProfit = bkash.reduce((a, t) => a + (t.profit || 0), 0);
+  const rechargeProfit = recharges.reduce((a, r) => a + (r.commission || 0), 0);
 
   // COGS from sale items
   let cogs = 0;
@@ -25,7 +29,7 @@ export async function GET() {
     }
   }
   const grossProfit = totalSales - cogs;
-  const netProfit = grossProfit - totalExpense;
+  const netProfit = grossProfit + bkashProfit + rechargeProfit - totalExpense;
 
   // Last 14 days sales trend
   const map = {};
@@ -69,6 +73,8 @@ export async function GET() {
     totalExpense,
     cogs,
     grossProfit,
+    bkashProfit,
+    rechargeProfit,
     netProfit,
     trend: days,
     topProducts,
