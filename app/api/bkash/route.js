@@ -19,11 +19,42 @@ export async function GET() {
         totalBalance += t.amount;
       } else if (['expense', 'self_cashout', 'cust_cashin', 'agent_cashin', 'b2b_send', 'cashin'].includes(t.type)) {
         totalBalance -= t.amount;
+      } else if (t.type === 'bundle_expense' && t.paymentSource !== 'cash') {
+        totalBalance -= t.amount;
       }
     }
   }
 
-  return NextResponse.json({ txns, accounts, balance: totalBalance });
+  // Monthly stats
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyTxns = txns.filter((t) => new Date(t.date) >= startOfMonth);
+
+  const monthlyBundleExpenses = monthlyTxns
+    .filter((t) => t.type === 'bundle_expense')
+    .reduce((a, t) => a + t.amount, 0);
+
+  const monthlyProfit = monthlyTxns.reduce((a, t) => a + (t.profit || 0), 0);
+  const monthlyGrossProfit = monthlyProfit + monthlyBundleExpenses;
+
+  const totalBundleExpenses = txns
+    .filter((t) => t.type === 'bundle_expense')
+    .reduce((a, t) => a + t.amount, 0);
+
+  const totalProfit = txns.reduce((a, t) => a + (t.profit || 0), 0);
+  const totalGrossProfit = totalProfit + totalBundleExpenses;
+
+  return NextResponse.json({
+    txns,
+    accounts,
+    balance: totalBalance,
+    monthlyProfit,
+    monthlyGrossProfit,
+    monthlyBundleExpenses,
+    totalProfit,
+    totalGrossProfit,
+    totalBundleExpenses,
+  });
 }
 
 export async function POST(req) {
@@ -37,10 +68,12 @@ export async function POST(req) {
     type,
     description,
     amount,
+    cashAmount = 0,
     ratePerThousand = 0,
     customerCharge = 0,
     ourCost = 0,
     profit = 0,
+    paymentSource = 'sim_balance',
     ref = '',
   } = body;
 
@@ -56,9 +89,11 @@ export async function POST(req) {
 
   // Calculate balance change direction
   // + balance: cust_cashout (personal receives bKash), agent_cashout (agent receives bKash), income, b2b_receive
-  // - balance: self_cashout (personal withdraws bKash), cust_cashin (personal sends bKash), agent_cashin (agent sends bKash), expense, b2b_send
+  // - balance: self_cashout, cust_cashin, agent_cashin, expense, b2b_send, cashin, bundle_expense (if from sim)
   const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout'].includes(type);
-  const isMinus = ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin'].includes(type);
+  const isMinus =
+    ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin'].includes(type) ||
+    (type === 'bundle_expense' && paymentSource !== 'cash');
 
   if (targetAccount) {
     let current = targetAccount.balance || 0;
@@ -70,18 +105,26 @@ export async function POST(req) {
     balanceAfter = current;
   }
 
+  // If bundle_expense, ensure profit is negative (deducted from bKash profit)
+  let calculatedProfit = Number(profit) || 0;
+  if (type === 'bundle_expense') {
+    calculatedProfit = -Math.abs(amt);
+  }
+
   const t = await Bkash.create({
-    bkashType,
+    bkashType: type === 'bundle_expense' ? 'personal' : bkashType,
     accountId: targetAccount ? targetAccount._id.toString() : '',
     accountNumber: targetAccount ? targetAccount.number : accountNumber,
     type,
     description,
     amount: amt,
+    cashAmount: Number(cashAmount) || 0,
     ratePerThousand: Number(ratePerThousand) || 0,
     customerCharge: Number(customerCharge) || 0,
     ourCost: Number(ourCost) || 0,
-    profit: Number(profit) || 0,
+    profit: calculatedProfit,
     balanceAfter,
+    paymentSource,
     ref,
   });
 
@@ -100,7 +143,10 @@ export async function DELETE(req) {
     const account = await BkashAccount.findById(txn.accountId);
     if (account) {
       const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout'].includes(txn.type);
-      const isMinus = ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin'].includes(txn.type);
+      const isMinus =
+        ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin'].includes(txn.type) ||
+        (txn.type === 'bundle_expense' && txn.paymentSource !== 'cash');
+
       if (isPlus) account.balance = (account.balance || 0) - txn.amount;
       else if (isMinus) account.balance = (account.balance || 0) + txn.amount;
       await account.save();

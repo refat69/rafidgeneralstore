@@ -18,9 +18,9 @@ export default function TodayTransactionsPage() {
       .catch(() => {});
   }
 
-  if (!data) return <div className="empty">আজকের লেনদেন লোড হচ্ছে...</div>;
+  if (!data) return <div className="empty mt">আজকের লেনদেন লোড হচ্ছে...</div>;
 
-  const { sales, bkash, expenses, recharges, stockLogs = [] } = data;
+  const { sales, bkash, expenses, recharges, stockLogs = [], cashTransactions = [] } = data;
 
   // Calculators
   const todaySalesAmt = sales.reduce((a, s) => a + s.totalAmount, 0);
@@ -44,6 +44,15 @@ export default function TodayTransactionsPage() {
   // Today's Purchases total
   const todayStockAddedAmt = stockLogs.reduce((a, log) => a + (log.qtyAdded * log.buyPrice), 0);
 
+  // Today's Capital from home
+  const todayCapitalFromHome = cashTransactions
+    .filter((c) => c.type === 'in' && c.source === 'home_capital')
+    .reduce((a, c) => a + c.amount, 0);
+
+  const todayWithdrawnToHome = cashTransactions
+    .filter((c) => c.type === 'out' && c.source === 'withdraw_home')
+    .reduce((a, c) => a + c.amount, 0);
+
   // Total Net Profit today
   const todayNetProfit = todaySalesProfit + todayRechargeProfit + todayBkashProfit - todayExpensesAmt;
 
@@ -52,13 +61,16 @@ export default function TodayTransactionsPage() {
       <div className="topbar">
         <div>
           <h2>📅 আজকের লেনদেন ও হিসাব-নিকাশ</h2>
-          <div className="sub">আজকের দিনের সকল কেনা-বেচা, নতুন মাল কেনা, রিচার্জ ও খরচের বিবরণী</div>
+          <div className="sub">আজকের দিনের সকল কেনা-বেচা, নতুন মাল কেনা, রিচার্জ, খরচ ও ক্যাশ বিবরণী</div>
         </div>
-        <Link href="/admin" className="btn gray">🏠 ড্যাশবোর্ড</Link>
+        <div className="flex" style={{ gap: 10 }}>
+          <Link href="/admin/cash" className="btn green">💵 ক্যাশবাক্স হিসাব</Link>
+          <Link href="/admin" className="btn gray">🏠 ড্যাশবোর্ড</Link>
+        </div>
       </div>
 
       {/* Summary Cards Row 1 */}
-      <div className="grid cols-3 mt">
+      <div className="grid cols-4 mt">
         <div className="card" style={{ borderLeft: '4px solid #22c55e' }}>
           <div className="label">আজকের নিট লাভ (Net Profit)</div>
           <div className={`value ${todayNetProfit >= 0 ? 'green' : 'red'}`}>{taka(todayNetProfit)}</div>
@@ -68,8 +80,12 @@ export default function TodayTransactionsPage() {
           <div className="value green">{taka(todaySalesAmt)}</div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #0284c7' }}>
-          <div className="label">আজকের মাল কেনা (Today's Purchases)</div>
+          <div className="label">আজকের মাল কেনা (Purchases)</div>
           <div className="value blue">{taka(todayStockAddedAmt)}</div>
+        </div>
+        <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
+          <div className="label">বাড়ি থেকে আনা ক্যাশ (Capital)</div>
+          <div className="value green">{taka(todayCapitalFromHome)}</div>
         </div>
       </div>
 
@@ -211,35 +227,98 @@ export default function TodayTransactionsPage() {
         </div>
       </div>
 
-      <div className="grid cols-1 mt">
+      {/* Cash Transactions & bKash Transactions */}
+      <div className="grid cols-2 mt">
+        {/* Cash Transactions (Home Capital & Withdrawals) */}
+        <div className="card">
+          <div className="flex between align-center" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>🏠 আজকের বাড়ি থেকে আনা ক্যাশ ও উত্তোলন ({cashTransactions.length} টি)</h3>
+            <Link href="/admin/cash" className="blue" style={{ fontSize: 12 }}>ক্যাশ খাতা →</Link>
+          </div>
+          <div className="table-wrap mt8" style={{ maxHeight: 300, overflowY: 'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>ক্যাটাগরি ও উদ্দেশ্য</th>
+                  <th>ধরন</th>
+                  <th>টাকা</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashTransactions.map((c) => {
+                  const isIn = c.type === 'in';
+                  return (
+                    <tr key={c._id}>
+                      <td>
+                        <b>{c.category}</b>
+                        <div className="muted" style={{ fontSize: 11 }}>{c.description || '—'}</div>
+                      </td>
+                      <td>
+                        <span className={`badge ${isIn ? 'green' : 'red'}`}>
+                          {isIn ? 'ক্যাশ ইন' : 'উত্তোলন'}
+                        </span>
+                      </td>
+                      <td>
+                        <b style={{ color: isIn ? '#16a34a' : '#dc2626' }}>
+                          {isIn ? '+' : '−'}{taka(c.amount)}
+                        </b>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {cashTransactions.length === 0 && (
+                  <tr><td colSpan={3} className="empty">আজ কোনো ক্যাশ মূলধন জমা বা উত্তোলন হয়নি</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* bKash Transactions */}
         <div className="card">
-          <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>📱 আজকের বিকাশ লেনদেন ({bkash.length} টি)</h3>
+          <div className="flex between align-center" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>📱 আজকের বিকাশ লেনদেন ({bkash.length} টি)</h3>
+            <Link href="/admin/bkash" className="pink" style={{ fontSize: 12 }}>বিকাশ লেজার →</Link>
+          </div>
           <div className="table-wrap mt8" style={{ maxHeight: 300, overflowY: 'auto' }}>
             <table>
               <thead>
                 <tr>
                   <th>বিবরণ ও টাইপ</th>
-                  <th>পরিমাণ</th>
-                  <th>কাস্টমার চার্জ</th>
-                  <th>লাভ</th>
+                  <th>টাকা</th>
+                  <th>লাভ / খরচ</th>
                 </tr>
               </thead>
               <tbody>
-                {bkash.map((b) => (
-                  <tr key={b._id}>
-                    <td>
-                      <b>{b.description}</b>
-                      <div className="muted" style={{ fontSize: 11 }}>
-                        {b.bkashType} • {b.type}
-                      </div>
-                    </td>
-                    <td><b>{taka(b.amount)}</b></td>
-                    <td>{taka(b.customerCharge)}</td>
-                    <td className="green"><b>{taka(b.profit)}</b></td>
-                  </tr>
-                ))}
-                {bkash.length === 0 && <tr><td colSpan={4} className="empty">আজ কোনো বিকাশ লেনদেন হয়নি</td></tr>}
+                {bkash.map((b) => {
+                  const isBundle = b.type === 'bundle_expense';
+                  return (
+                    <tr key={b._id}>
+                      <td>
+                        <span className={`badge ${isBundle ? 'amber' : b.bkashType === 'agent' ? 'blue' : 'pink'}`} style={{ fontSize: 10, marginRight: 6 }}>
+                          {isBundle ? 'বান্ডেল খরচ' : b.bkashType}
+                        </span>
+                        <b>{b.description}</b>
+                        {b.cashAmount > 0 && b.type === 'cust_cashout' && (
+                          <div className="muted" style={{ fontSize: 11 }}>ক্যাশ দেওয়া: {taka(b.cashAmount)}</div>
+                        )}
+                      </td>
+                      <td><b>{taka(b.amount)}</b></td>
+                      <td>
+                        {isBundle ? (
+                          <b className="red">-{taka(b.amount)}</b>
+                        ) : b.profit > 0 ? (
+                          <b className="green">+{taka(b.profit)}</b>
+                        ) : b.profit < 0 ? (
+                          <b className="red">{taka(b.profit)}</b>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {bkash.length === 0 && <tr><td colSpan={3} className="empty">আজ কোনো বিকাশ লেনদেন হয়নি</td></tr>}
               </tbody>
             </table>
           </div>

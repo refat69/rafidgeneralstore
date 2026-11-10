@@ -9,25 +9,42 @@ export default function BkashPage() {
   const [accounts, setAccounts] = useState([]);
   const [totalBalance, setTotalBalance] = useState(0);
 
-  // Form Mode & Tab
-  const [bkashType, setBkashType] = useState('personal'); // personal | agent
+  // Profit stats
+  const [stats, setStats] = useState({
+    monthlyProfit: 0,
+    monthlyGrossProfit: 0,
+    monthlyBundleExpenses: 0,
+    totalProfit: 0,
+    totalGrossProfit: 0,
+    totalBundleExpenses: 0,
+  });
+
+  // Form Mode & Tab: 'personal' | 'agent' | 'bundle'
+  const [bkashType, setBkashType] = useState('personal');
   const [selectedAccountId, setSelectedAccountId] = useState('');
 
   // Personal Transaction States
   // personal types: 'cust_cashout' | 'self_cashout' | 'cust_cashin' | 'income' | 'expense'
   const [personalTxType, setPersonalTxType] = useState('cust_cashout');
-  const [personalAmount, setPersonalAmount] = useState('');
-  const [ratePerThousand, setRatePerThousand] = useState('13'); // default 13 tk per 1000
-  const [customerCharge, setCustomerCharge] = useState('');
+  const [cashGivenToCust, setCashGivenToCust] = useState(''); // e.g. 10000 cash given
+  const [personalAmount, setPersonalAmount] = useState(''); // total digital received e.g. 10100
+  const [ratePerThousand, setRatePerThousand] = useState('10'); // default 10 tk per 1000
+  const [customerCharge, setCustomerCharge] = useState(''); // profit e.g. 100
   const [personalDesc, setPersonalDesc] = useState('');
 
   // Agent Transaction States
-  // agent types: 'agent_cashin' | 'agent_cashout' | 'b2b_load' | 'b2b_withdraw'
+  // agent types: 'agent_cashin' | 'agent_cashout'
   const [agentTxType, setAgentTxType] = useState('agent_cashin');
   const [agentAmount, setAgentAmount] = useState('');
   const [agentCommRate, setAgentCommRate] = useState('4.14'); // 4.14 tk per 1000
   const [agentCommAmount, setAgentCommAmount] = useState('');
   const [agentDesc, setAgentDesc] = useState('');
+
+  // Bundle Expense States
+  const [bundleAccountId, setBundleAccountId] = useState('');
+  const [bundleAmount, setBundleAmount] = useState('');
+  const [bundlePaymentSource, setBundlePaymentSource] = useState('sim_balance'); // 'sim_balance' | 'cash'
+  const [bundleDesc, setBundleDesc] = useState('সেন্ড মানি বান্ডেল প্যাক কেনা হলো');
 
   // Account Modal / Form state
   const [showAccModal, setShowAccModal] = useState(false);
@@ -49,35 +66,76 @@ export default function BkashPage() {
         setTxns(d.txns || []);
         setAccounts(d.accounts || []);
         setTotalBalance(d.balance || 0);
+        setStats({
+          monthlyProfit: d.monthlyProfit || 0,
+          monthlyGrossProfit: d.monthlyGrossProfit || 0,
+          monthlyBundleExpenses: d.monthlyBundleExpenses || 0,
+          totalProfit: d.totalProfit || 0,
+          totalGrossProfit: d.totalGrossProfit || 0,
+          totalBundleExpenses: d.totalBundleExpenses || 0,
+        });
 
         // Auto select first account if available
         if (d.accounts && d.accounts.length > 0) {
           const pers = d.accounts.find((a) => a.accountType === 'personal');
-          if (pers && !selectedAccountId) setSelectedAccountId(pers._id);
-          else if (!selectedAccountId) setSelectedAccountId(d.accounts[0]._id);
+          if (pers && !selectedAccountId) {
+            setSelectedAccountId(pers._id);
+            setBundleAccountId(pers._id);
+          } else if (!selectedAccountId) {
+            setSelectedAccountId(d.accounts[0]._id);
+            setBundleAccountId(d.accounts[0]._id);
+          }
         }
       })
       .catch(() => {});
   }
 
   // Personal Customer Cash Out calculations
-  useEffect(() => {
-    const amt = Number(personalAmount) || 0;
-    if (personalTxType === 'cust_cashout') {
-      const rate = Number(ratePerThousand) || 0;
-      const chg = ((amt / 1000) * rate).toFixed(2);
-      setCustomerCharge(chg);
-      if (!personalDesc || personalDesc.startsWith('কাস্টমার ক্যাশআউট')) {
-        setPersonalDesc(`কাস্টমার ক্যাশআউট (হাজার: ৳${rate})`);
-      }
-    } else if (personalTxType === 'self_cashout') {
-      setCustomerCharge('0');
-      setPersonalDesc('পার্সোনাল সিম ব্যালেন্স ক্যাশআউট / উইথড্র');
-    } else if (personalTxType === 'cust_cashin') {
-      setCustomerCharge('0');
-      setPersonalDesc('কাস্টমার সেন্ড মানি / ক্যাশ ইন');
-    }
-  }, [personalAmount, ratePerThousand, personalTxType]);
+  // Scenario: customer sends 10100 to SIM, shop gives 10000 cash, profit is 100.
+  const handleCashGivenChange = (val) => {
+    setCashGivenToCust(val);
+    const cash = Number(val) || 0;
+    const rate = Number(ratePerThousand) || 0;
+    const chg = Math.round((cash / 1000) * rate);
+    setCustomerCharge(chg ? String(chg) : '');
+    const totalDigital = cash + chg;
+    setPersonalAmount(totalDigital ? String(totalDigital) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+  };
+
+  const handleRateChange = (val) => {
+    setRatePerThousand(val);
+    const cash = Number(cashGivenToCust) || 0;
+    const rate = Number(val) || 0;
+    const chg = Math.round((cash / 1000) * rate);
+    setCustomerCharge(chg ? String(chg) : '');
+    const totalDigital = cash + chg;
+    setPersonalAmount(totalDigital ? String(totalDigital) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+  };
+
+  const handleProfitChange = (val) => {
+    setCustomerCharge(val);
+    const cash = Number(cashGivenToCust) || 0;
+    const chg = Number(val) || 0;
+    const totalDigital = cash + chg;
+    setPersonalAmount(totalDigital ? String(totalDigital) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+  };
+
+  const handleDigitalAmountChange = (val) => {
+    setPersonalAmount(val);
+    if (personalTxType !== 'cust_cashout') return;
+    const totalDigital = Number(val) || 0;
+    const rate = Number(ratePerThousand) || 0;
+    // total = cash * (1 + rate/1000)
+    const factor = 1 + rate / 1000;
+    const cash = Math.round(totalDigital / factor);
+    const chg = totalDigital - cash;
+    setCashGivenToCust(cash ? String(cash) : '');
+    setCustomerCharge(chg ? String(chg) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+  };
 
   // Agent Commission calculations
   useEffect(() => {
@@ -124,18 +182,21 @@ export default function BkashPage() {
 
   async function submitPersonalTx(e) {
     e.preventDefault();
-    if (!personalAmount || Number(personalAmount) <= 0) {
-      toast.error('সঠিক পরিমাণ লিখুন');
+    const isCashout = personalTxType === 'cust_cashout';
+    const digitalAmt = Number(personalAmount);
+    const cashAmt = isCashout ? Number(cashGivenToCust) || digitalAmt : digitalAmt;
+
+    if (!digitalAmt || digitalAmt <= 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
       return;
     }
 
     const selectedAcc = accounts.find((a) => a._id === selectedAccountId);
 
     setLoading(true);
-    const amt = Number(personalAmount);
-    const chg = Number(customerCharge) || 0;
-    const rate = Number(ratePerThousand) || 0;
-    const profit = personalTxType === 'cust_cashout' ? chg : 0;
+    const chg = isCashout ? Number(customerCharge) || 0 : 0;
+    const rate = isCashout ? Number(ratePerThousand) || 0 : 0;
+    const profit = isCashout ? chg : 0;
 
     const res = await fetch('/api/bkash', {
       method: 'POST',
@@ -146,7 +207,8 @@ export default function BkashPage() {
         accountNumber: selectedAcc ? selectedAcc.number : '',
         type: personalTxType,
         description: personalDesc || 'পার্সোনাল লেনদেন',
-        amount: amt,
+        amount: digitalAmt, // digital amount credited to or debited from SIM balance
+        cashAmount: cashAmt, // physical cash handed out or taken
         ratePerThousand: rate,
         customerCharge: chg,
         profit: profit,
@@ -159,6 +221,8 @@ export default function BkashPage() {
     }
     toast.success('✅ পার্সোনাল লেনদেন সফল হয়েছে!');
     setPersonalAmount('');
+    setCashGivenToCust('');
+    setCustomerCharge('');
     setPersonalDesc('');
     loadData();
   }
@@ -186,6 +250,7 @@ export default function BkashPage() {
         type: agentTxType,
         description: agentDesc || 'এজেন্ট লেনদেন',
         amount: amt,
+        cashAmount: amt,
         customerCharge: 0,
         profit: profit,
       }),
@@ -201,8 +266,48 @@ export default function BkashPage() {
     loadData();
   }
 
+  async function submitBundleTx(e) {
+    e.preventDefault();
+    const amt = Number(bundleAmount);
+    if (!amt || amt <= 0) {
+      toast.error('বান্ডেলের সঠিক খরচ লিখুন');
+      return;
+    }
+    if (!bundleAccountId) {
+      toast.error('যে সিমের জন্য বান্ডেল কিনেছেন সেটি নির্বাচন করুন');
+      return;
+    }
+
+    const targetAcc = accounts.find((a) => a._id === bundleAccountId);
+
+    setLoading(true);
+    const res = await fetch('/api/bkash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bkashType: 'personal',
+        accountId: bundleAccountId,
+        accountNumber: targetAcc ? targetAcc.number : '',
+        type: 'bundle_expense',
+        description: `[${targetAcc ? targetAcc.number : 'সিম'}] সেন্ড মানি বান্ডেল ক্রয় (${bundleDesc.trim() || 'বান্ডেল প্যাক'})`,
+        amount: amt,
+        cashAmount: bundlePaymentSource === 'cash' ? amt : 0,
+        profit: -amt, // negatively impacts profit
+        paymentSource: bundlePaymentSource,
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('বান্ডেল খরচ সংরক্ষণ করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ সেন্ড মানি বান্ডেল খরচ সংরক্ষিত হয়েছে এবং নিট লাভ থেকে বিয়োগ হয়েছে!');
+    setBundleAmount('');
+    loadData();
+  }
+
   async function handleDeleteTx(id) {
-    if (!confirm('লেনদেনটি মুছে ফেলবেন? এটি সম্পর্কিত ব্যালেন্সও রিসেট হবে।')) return;
+    if (!confirm('লেনদেনটি মুছে ফেলবেন? এটি সম্পর্কিত ব্যালেন্সও পূর্বের অবস্থায় ফিরে যাবে।')) return;
     await fetch(`/api/bkash?id=${id}`, { method: 'DELETE' });
     toast.success('লেনদেন মুছে ফেলা হয়েছে');
     loadData();
@@ -217,7 +322,6 @@ export default function BkashPage() {
 
   const personalAccounts = accounts.filter((a) => a.accountType === 'personal');
   const agentAccounts = accounts.filter((a) => a.accountType === 'agent');
-  const totalBkashProfit = txns.reduce((a, t) => a + (t.profit || 0), 0);
 
   return (
     <div>
@@ -226,7 +330,7 @@ export default function BkashPage() {
         <div>
           <h2>📱 bKash ডিজিটাল হিসাব ও লেজার</h2>
           <div className="sub">
-            মোট ব্যালেন্স: <b className="blue">{taka(totalBalance)}</b> • মোট অর্জিত লাভ: <b className="green">{taka(totalBkashProfit)}</b>
+            বিকাশ পার্সোনাল কাস্টমার সার্ভিস, এজেন্ট ক্যাশ-ইন/আউট এবং সেন্ড মানি বান্ডেল হিসাব
           </div>
         </div>
         <button className="btn pink" onClick={() => setShowAccModal(true)}>
@@ -234,11 +338,52 @@ export default function BkashPage() {
         </button>
       </div>
 
+      {/* Top Profit & Balance Cards */}
+      <div className="grid cols-4 mb" style={{ marginBottom: 16 }}>
+        <div className="card" style={{ borderLeft: '4px solid #ec4899' }}>
+          <div className="label">মোট বিকাশ ব্যালেন্স (All Wallets)</div>
+          <div className="value pink">{taka(totalBalance)}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            নিবন্ধিত {accounts.length} টি নম্বরে মোট টাকা
+          </div>
+        </div>
+
+        <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
+          <div className="label">চলতি মাসের গ্রস লাভ (Gross)</div>
+          <div className="value green">{taka(stats.monthlyGrossProfit)}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            চার্জ ও কমিশন বাবদ অর্জিত আয়
+          </div>
+        </div>
+
+        <div className="card" style={{ borderLeft: '4px solid #ef4444' }}>
+          <div className="label">চলতি মাসের বান্ডেল খরচ (Bundle)</div>
+          <div className="value red">-{taka(stats.monthlyBundleExpenses)}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            সিমগুলোতে সেন্ড মানি বান্ডেল ক্রয়
+          </div>
+        </div>
+
+        <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
+          <div className="label">চলতি মাসের নিট লাভ (Net Profit)</div>
+          <div className={`value ${stats.monthlyProfit >= 0 ? 'green' : 'red'}`}>
+            {taka(stats.monthlyProfit)}
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            বান্ডেল খরচ বিয়োগের পর নিট লাভ
+          </div>
+        </div>
+      </div>
+
       {/* Account Cards Section */}
-      <div className="card mb" style={{ background: 'var(--bg)', border: '1px dashed var(--border)', padding: '14px 18px' }}>
+      <div className="card mb" style={{ background: '#fdf2f8', border: '1px dashed #f472b6', padding: '14px 18px', marginBottom: 16 }}>
         <div className="flex between align-center mb8">
-          <h4 style={{ margin: 0, fontSize: 15, fontWeight: 'bold' }}>💳 নিবন্ধিত bKash মোবাইল নম্বর ও ব্যালেন্স</h4>
-          <span className="muted" style={{ fontSize: 12 }}>পার্সোনাল সিম: {personalAccounts.length} টি • এজেন্ট নম্বর: {agentAccounts.length} টি</span>
+          <h4 style={{ margin: 0, fontSize: 15, fontWeight: 'bold', color: '#831843' }}>
+            💳 নিবন্ধিত bKash মোবাইল নম্বর ও ব্যালেন্স
+          </h4>
+          <span className="muted" style={{ fontSize: 12 }}>
+            পার্সোনাল সিম: {personalAccounts.length} টি • এজেন্ট নম্বর: {agentAccounts.length} টি
+          </span>
         </div>
 
         <div className="grid cols-3" style={{ gap: 12 }}>
@@ -255,7 +400,9 @@ export default function BkashPage() {
               }}
               onClick={() => {
                 setSelectedAccountId(acc._id);
-                setBkashType(acc.accountType);
+                setBundleAccountId(acc._id);
+                if (acc.accountType === 'agent' && bkashType !== 'bundle') setBkashType('agent');
+                else if (acc.accountType === 'personal' && bkashType !== 'bundle') setBkashType('personal');
               }}
             >
               <div className="flex between align-center">
@@ -298,7 +445,7 @@ export default function BkashPage() {
         {/* Left: Transaction Form */}
         <div className="card">
           {/* Mode selector */}
-          <div className="flex gap mb8" style={{ borderBottom: '2px solid var(--border)', pb: 8 }}>
+          <div className="flex gap mb8" style={{ borderBottom: '2px solid var(--border)', paddingBottom: 10 }}>
             <button
               type="button"
               className={`btn ${bkashType === 'personal' ? 'pink' : 'gray'}`}
@@ -309,7 +456,7 @@ export default function BkashPage() {
                 if (p) setSelectedAccountId(p._id);
               }}
             >
-              👤 পার্সোনাল লেনদেন (Personal)
+              👤 পার্সোনাল
             </button>
             <button
               type="button"
@@ -321,92 +468,157 @@ export default function BkashPage() {
                 if (a) setSelectedAccountId(a._id);
               }}
             >
-              🏪 এজেন্ট লেনদেন (Agent)
+              🏪 এজেন্ট
+            </button>
+            <button
+              type="button"
+              className={`btn ${bkashType === 'bundle' ? 'pink' : 'gray'}`}
+              style={{ flex: 1 }}
+              onClick={() => {
+                setBkashType('bundle');
+                if (!bundleAccountId && personalAccounts[0]) {
+                  setBundleAccountId(personalAccounts[0]._id);
+                }
+              }}
+            >
+              📦 বান্ডেল খরচ
             </button>
           </div>
 
-          {/* Account Selector */}
-          <div className="form-grid mt8">
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ fontWeight: 'bold' }}>মোবাইল নম্বর / অ্যাকাউন্ট বাছাই করুন</label>
-              <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
-                <option value="">-- নম্বর সিলেক্ট করুন --</option>
-                {(bkashType === 'personal' ? personalAccounts : agentAccounts).map((acc) => (
-                  <option key={acc._id} value={acc._id}>
-                    {acc.number} {acc.name ? `(${acc.name})` : ''} - ব্যালেন্স: {taka(acc.balance)}
-                  </option>
-                ))}
-              </select>
+          {/* Account Selector (for Personal & Agent) */}
+          {bkashType !== 'bundle' && (
+            <div className="form-grid mt8">
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>মোবাইল নম্বর / অ্যাকাউন্ট বাছাই করুন</label>
+                <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
+                  <option value="">-- নম্বর সিলেক্ট করুন --</option>
+                  {(bkashType === 'personal' ? personalAccounts : agentAccounts).map((acc) => (
+                    <option key={acc._id} value={acc._id}>
+                      {acc.number} {acc.name ? `(${acc.name})` : ''} - ব্যালেন্স: {taka(acc.balance)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Personal Transaction Form */}
           {bkashType === 'personal' && (
             <form className="form-grid mt8" onSubmit={submitPersonalTx}>
               <div>
                 <label>লেনদেনের ধরণ</label>
-                <select value={personalTxType} onChange={(e) => setPersonalTxType(e.target.value)}>
-                  <option value="cust_cashout">📥 কাস্টমার ক্যাশআউট (ক্যাশ সার্ভিস)</option>
+                <select
+                  value={personalTxType}
+                  onChange={(e) => {
+                    setPersonalTxType(e.target.value);
+                    if (e.target.value === 'cust_cashout') {
+                      setPersonalDesc('কাস্টমার ক্যাশআউট');
+                    } else if (e.target.value === 'self_cashout') {
+                      setPersonalDesc('পার্সোনাল সিম ব্যালেন্স ক্যাশআউট / উইথড্র');
+                    } else if (e.target.value === 'cust_cashin') {
+                      setPersonalDesc('কাস্টমার সেন্ড মানি / ক্যাশ ইন');
+                    } else {
+                      setPersonalDesc('');
+                    }
+                  }}
+                >
+                  <option value="cust_cashout">📥 কাস্টমার ক্যাশআউট (ক্যাশ সার্ভিস - ব্যালেন্সে বেশি নিবেন)</option>
                   <option value="self_cashout">💸 সিম ব্যালেন্স ক্যাশআউট / উইথড্র</option>
                   <option value="cust_cashin">📤 কাস্টমার সেন্ড মানি / ক্যাশ ইন</option>
                   <option value="income">💰 ক্যাশ লোড / আয়</option>
-                  <option value="expense">🔻 খরচ / ব্যয়</option>
+                  <option value="expense">🔻 অন্যান্য খরচ</option>
                 </select>
               </div>
 
-              <div>
-                <label>টাকার পরিমাণ (৳)</label>
-                <input
-                  type="number"
-                  placeholder="যেমন: ২০০০০"
-                  value={personalAmount}
-                  onChange={(e) => setPersonalAmount(e.target.value)}
-                  required
-                />
-              </div>
-
-              {personalTxType === 'cust_cashout' && (
+              {personalTxType === 'cust_cashout' ? (
                 <>
                   <div>
-                    <label>হাজার প্রতি কাস্টমার খরচ (৳)</label>
+                    <label>কাস্টমারকে দেওয়া নগদ ক্যাশ (৳) *</label>
                     <input
                       type="number"
-                      step="0.1"
-                      placeholder="যেমন: ১৩"
-                      value={ratePerThousand}
-                      onChange={(e) => setRatePerThousand(e.target.value)}
+                      placeholder="যেমন: ১০০০০"
+                      value={cashGivenToCust}
+                      onChange={(e) => handleCashGivenChange(e.target.value)}
+                      required
                     />
                   </div>
 
                   <div>
-                    <label>মোট কাস্টমার চার্জ / লাভ (৳)</label>
+                    <label>হাজার প্রতি লাভ / চার্জ (৳)</label>
                     <input
                       type="number"
-                      step="0.01"
-                      value={customerCharge}
-                      onChange={(e) => setCustomerCharge(e.target.value)}
+                      step="0.5"
+                      placeholder="যেমন: ১০"
+                      value={ratePerThousand}
+                      onChange={(e) => handleRateChange(e.target.value)}
                     />
                   </div>
 
-                  <div style={{ gridColumn: '1 / -1', background: '#f0fdf4', padding: '10px 14px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                    <div className="flex between align-center">
-                      <span style={{ fontSize: 13, color: '#166534' }}>💡 কাস্টমার থেকে মোট নগদে নিবেন:</span>
-                      <b style={{ fontSize: 18, color: '#15803d' }}>
-                        {taka((Number(personalAmount) || 0) + (Number(customerCharge) || 0))}
-                      </b>
+                  <div>
+                    <label>আপনার লাভ / চার্জ (৳)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      placeholder="যেমন: ১০০"
+                      value={customerCharge}
+                      onChange={(e) => handleProfitChange(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ fontWeight: 'bold', color: '#be185d' }}>
+                      📲 কাস্টমার থেকে সিমে প্রাপ্ত মোট ব্যালেন্স (৳) *
+                    </label>
+                    <input
+                      type="number"
+                      style={{ fontSize: 16, fontWeight: 'bold', background: '#fdf2f8', borderColor: '#f472b6' }}
+                      placeholder="যেমন: ১০১০০"
+                      value={personalAmount}
+                      onChange={(e) => handleDigitalAmountChange(e.target.value)}
+                      required
+                    />
+                    <small className="muted" style={{ display: 'block', marginTop: 4 }}>
+                      কাস্টমার লাভ সহ মোট যে টাকা সিমে পাঠিয়েছে (যেমন: ১০০০০ ক্যাশ + ১০০ লাভ = ১০১০০ ৳)
+                    </small>
+                  </div>
+
+                  {/* Visual calculation preview */}
+                  <div
+                    style={{
+                      gridColumn: '1 / -1',
+                      background: '#f0fdf4',
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      border: '1px solid #86efac',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: 6 }}>
+                      💡 লেনদেনের নিখুঁত হিসাব বিবরণী:
                     </div>
-                    <div style={{ fontSize: 11, color: '#166534', marginTop: 4 }}>
-                      • সিমে বিকাশ ডিজিটাল জমা হবে: <b>+{taka(Number(personalAmount) || 0)}</b>
-                      <br />• আপনার নিট লাভ: <b>+{taka(Number(customerCharge) || 0)}</b>
+                    <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
+                      • আপনার বিকাশ সিমে ঢুকবে: <b style={{ color: '#15803d' }}>+{taka(Number(personalAmount) || 0)}</b>
+                      <br />• কাস্টমারকে নগদ ক্যাশ দিবেন: <b style={{ color: '#dc2626' }}>-{taka(Number(cashGivenToCust) || 0)}</b>
+                      <br />• আপনার নিট লাভ: <b style={{ color: '#16a34a' }}>+{taka(Number(customerCharge) || 0)}</b>
                     </div>
                   </div>
                 </>
+              ) : (
+                <div>
+                  <label>টাকার পরিমাণ (৳) *</label>
+                  <input
+                    type="number"
+                    placeholder="যেমন: ৫০০০"
+                    value={personalAmount}
+                    onChange={(e) => setPersonalAmount(e.target.value)}
+                    required
+                  />
+                </div>
               )}
 
               {personalTxType === 'self_cashout' && (
                 <div style={{ gridColumn: '1 / -1', background: '#eff6ff', padding: '10px 14px', borderRadius: 8, border: '1px solid #bfdbfe' }}>
                   <div style={{ fontSize: 13, color: '#1e40af' }}>
-                    ℹ️ পার্সোনাল নম্বর থেকে ব্যালেন্স ক্যাশ করা হলে সংশ্লিষ্ট মোবাইল নম্বরের ব্যালেন্স <b>-{taka(Number(personalAmount) || 0)}</b> কমে যাবে।
+                    ℹ️ পার্সোনাল নম্বর থেকে ব্যালেন্স ক্যাশ করা হলে সংশ্লিষ্ট মোবাইল নম্বরের ব্যালেন্স <b>-{taka(Number(personalAmount) || 0)}</b> কমে যাবে এবং ক্যাশবাক্সে জমা হবে।
                   </div>
                 </div>
               )}
@@ -486,6 +698,64 @@ export default function BkashPage() {
               </button>
             </form>
           )}
+
+          {/* Bundle Expense Form */}
+          {bkashType === 'bundle' && (
+            <form className="form-grid mt8" onSubmit={submitBundleTx}>
+              <div style={{ gridColumn: '1 / -1', background: '#fffbeb', border: '1px solid #fde68a', padding: '12px 14px', borderRadius: 8 }}>
+                <div style={{ fontWeight: 'bold', color: '#92400e', fontSize: 14 }}>
+                  📦 সেন্ড মানি বান্ডেল ক্রয় / সিম খরচ এন্ট্রি
+                </div>
+                <div style={{ fontSize: 12.5, color: '#b45309', marginTop: 4 }}>
+                  পার্সোনাল সিমে সেন্ড মানি করতে বিকাশ যে বান্ডেল প্যাক কিনতে হয়, তার খরচ এখানে যুক্ত করুন। এটি সংশ্লিষ্ট সিম এবং চলতি মাসের বিকাশ নিট লাভ থেকে স্বয়ংক্রিয়ভাবে বিয়োগ (-) হবে।
+                </div>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>কোন সিমের জন্য বান্ডেল কেনা হলো? *</label>
+                <select value={bundleAccountId} onChange={(e) => setBundleAccountId(e.target.value)} required>
+                  <option value="">-- বিকাশ সিম নির্বাচন করুন --</option>
+                  {accounts.map((acc) => (
+                    <option key={acc._id} value={acc._id}>
+                      {acc.number} {acc.name ? `(${acc.name})` : ''} [{acc.accountType === 'agent' ? 'এজেন্ট' : 'পার্সোনাল'}] - বর্তমান ব্যালেন্স: {taka(acc.balance)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label>বান্ডেল প্যাকের খরচ (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ৫০ বা ৭৫"
+                  value={bundleAmount}
+                  onChange={(e) => setBundleAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label>পেমেন্ট মাধ্যম *</label>
+                <select value={bundlePaymentSource} onChange={(e) => setBundlePaymentSource(e.target.value)}>
+                  <option value="sim_balance">📱 এই সিমের বিকাশ ব্যালেন্স থেকে কাটা হয়েছে</option>
+                  <option value="cash">💵 দোকানের নগদ ক্যাশ দিয়ে কেনা হয়েছে</option>
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label>বান্ডেল বিবরণ / নোট</label>
+                <input
+                  value={bundleDesc}
+                  onChange={(e) => setBundleDesc(e.target.value)}
+                  placeholder="যেমন: ৫০ টি সেন্ড মানি বান্ডেল প্যাক"
+                />
+              </div>
+
+              <button className="btn pink" style={{ gridColumn: '1 / -1', marginTop: 6 }} disabled={loading}>
+                {loading ? 'সংরক্ষণ হচ্ছে...' : '📦 বান্ডেল খরচ সংরক্ষণ করুন (- লাভ থেকে কাটুন)'}
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Right: History & Ledger Table */}
@@ -494,14 +764,14 @@ export default function BkashPage() {
             <h3>📋 সাম্প্রতিক bKash লেনদেন ও লেজার</h3>
           </div>
 
-          <div className="table-wrap mt8" style={{ maxHeight: 480, overflowY: 'auto' }}>
+          <div className="table-wrap mt8" style={{ maxHeight: 520, overflowY: 'auto' }}>
             <table>
               <thead>
                 <tr>
                   <th>তারিখ ও নম্বর</th>
                   <th>টাইপ ও বিবরণ</th>
                   <th>টাকা</th>
-                  <th>লাভ</th>
+                  <th>লাভ / খরচ</th>
                   <th>অবশিষ্ট ব্যালেন্স</th>
                   <th></th>
                 </tr>
@@ -509,6 +779,7 @@ export default function BkashPage() {
               <tbody>
                 {txns.map((t) => {
                   const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout'].includes(t.type);
+                  const isBundle = t.type === 'bundle_expense';
                   return (
                     <tr key={t._id}>
                       <td>
@@ -518,18 +789,34 @@ export default function BkashPage() {
                         <b>{t.accountNumber || 'মূল অ্যাকাউন্ট'}</b>
                       </td>
                       <td>
-                        <span className={`badge ${t.bkashType === 'agent' ? 'blue' : 'pink'}`} style={{ fontSize: 10 }}>
-                          {t.bkashType === 'agent' ? 'Agent' : 'Personal'}
+                        <span
+                          className={`badge ${isBundle ? 'amber' : t.bkashType === 'agent' ? 'blue' : 'pink'}`}
+                          style={{ fontSize: 10 }}
+                        >
+                          {isBundle ? 'বান্ডেল খরচ' : t.bkashType === 'agent' ? 'Agent' : 'Personal'}
                         </span>
                         <div style={{ fontSize: 12, fontWeight: 'bold', marginTop: 2 }}>{t.description}</div>
+                        {t.cashAmount > 0 && t.type === 'cust_cashout' && (
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                            ক্যাশ দেওয়া: {taka(t.cashAmount)}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <b style={{ color: isPlus ? 'green' : 'red' }}>
                           {isPlus ? '+' : '−'}{taka(t.amount)}
                         </b>
                       </td>
-                      <td className="green">
-                        <b>{t.profit ? taka(t.profit) : '—'}</b>
+                      <td>
+                        {isBundle ? (
+                          <b className="red">-{taka(t.amount)}</b>
+                        ) : t.profit > 0 ? (
+                          <b className="green">+{taka(t.profit)}</b>
+                        ) : t.profit < 0 ? (
+                          <b className="red">{taka(t.profit)}</b>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td>
                         <span className="muted">{t.balanceAfter !== undefined ? taka(t.balanceAfter) : '—'}</span>

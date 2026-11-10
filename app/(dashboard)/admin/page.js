@@ -51,8 +51,19 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <h3 className="section-title mt" style={{ marginBottom: 12, marginTop: 24 }}>📦 স্টক ও লেজার হিসাব</h3>
+          <h3 className="section-title mt" style={{ marginBottom: 12, marginTop: 24 }}>💵 ক্যাশবাক্স, স্টক ও লেজার হিসাব</h3>
           <div className="grid cols-4">
+            <div className="card" style={{ borderLeft: '4px solid #16a34a', background: '#f0fdf4' }}>
+              <div className="label">
+                <span>হাতে নগদ ক্যাশ (Cash in Hand)</span>
+                <Link href="/admin/cash" className="blue" style={{ fontSize: 11 }}>বিস্তারিত →</Link>
+              </div>
+              <div className={`value ${stats.cashInHand >= 0 ? 'green' : 'red'}`}>{taka(stats.cashInHand)}</div>
+            </div>
+            <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
+              <div className="label">বাড়ি থেকে আনা মোট ক্যাশ</div>
+              <div className="value blue">{taka(stats.capitalFromHome)}</div>
+            </div>
             <div className="card">
               <div className="label">মোট বাকি / পাওনা (Total Due)</div>
               <div className="value red">{taka(stats.totalDue)}</div>
@@ -61,12 +72,18 @@ export default function DashboardPage() {
               <div className="label">মোট খরচ (Total Expense)</div>
               <div className="value red">{taka(stats.totalExpense)}</div>
             </div>
+          </div>
+
+          <div className="grid cols-2 mt" style={{ gap: 16 }}>
             <div className="card">
-              <div className="label">bKash ব্যালেন্স</div>
+              <div className="label">
+                <span>bKash সর্বমোট ব্যালেন্স</span>
+                <Link href="/admin/bkash" className="pink" style={{ fontSize: 11 }}>বিকাশ লেজার →</Link>
+              </div>
               <div className="value pink">{taka(stats.bkashBalance)}</div>
             </div>
             <div className="card">
-              <div className="label">বর্তমান স্টক মূল্য</div>
+              <div className="label">বর্তমান মোট স্টক মূল্য</div>
               <div className="value blue">{taka(stats.stockValue)}</div>
             </div>
           </div>
@@ -89,11 +106,13 @@ export default function DashboardPage() {
       <div className="grid cols-2 mt">
         <div className="card">
           <h3>🔗 দ্রুত কাজ</h3>
-          <div className="grid cols-2 mt8">
+          <div className="grid cols-3 mt8">
+            <Link href="/admin/cash" className="btn green">💵 ক্যাশবাক্স</Link>
             <Link href="/admin/sell" className="btn">🛒 বিক্রি</Link>
             <Link href="/admin/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
             <Link href="/admin/recharge" className="btn gray">⚡ রিচার্জ</Link>
             <Link href="/admin/bkash" className="btn gray">📱 bKash</Link>
+            <Link href="/admin/expense" className="btn gray">💸 খরচ</Link>
           </div>
         </div>
 
