@@ -90,17 +90,21 @@ export async function GET() {
 
   // Cash In Hand & Capital from Home calculation
   const cashTx = await CashTransaction.find().lean();
-  const capitalFromHome = cashTx
-    .filter((t) => t.type === 'in' && t.source === 'home_capital')
-    .reduce((a, t) => a + t.amount, 0);
-  const withdrawnToHome = cashTx
-    .filter((t) => t.type === 'out' && t.source === 'withdraw_home')
-    .reduce((a, t) => a + t.amount, 0);
+  const isHomeCapital = (t) =>
+    t.type === 'in' &&
+    (t.source === 'home_capital' || (t.category && (t.category.includes('বাড়ি') || t.category.includes('মূলধন'))));
+
+  const capitalFromHome = cashTx.filter(isHomeCapital).reduce((a, t) => a + t.amount, 0);
+  const isWithdrawnHome = (t) =>
+    t.type === 'out' &&
+    (t.source === 'withdraw_home' || (t.category && (t.category.includes('বাড়ি') || t.category.includes('উত্তোলন'))));
+
+  const withdrawnToHome = cashTx.filter(isWithdrawnHome).reduce((a, t) => a + t.amount, 0);
   const otherCashIn = cashTx
-    .filter((t) => t.type === 'in' && t.source !== 'home_capital')
+    .filter((t) => t.type === 'in' && !isHomeCapital(t))
     .reduce((a, t) => a + t.amount, 0);
   const otherCashOut = cashTx
-    .filter((t) => t.type === 'out' && t.source !== 'withdraw_home')
+    .filter((t) => t.type === 'out' && !isWithdrawnHome(t))
     .reduce((a, t) => a + t.amount, 0);
 
   const salesCash = salesAll
@@ -108,8 +112,8 @@ export async function GET() {
     .reduce((a, s) => a + (s.paidAmount || 0), 0);
   const rechargeCash = rechargesAll.reduce((a, r) => a + (r.amount || 0), 0);
   const bkashCashIn = bkashAll
-    .filter((t) => ['cust_cashin', 'agent_cashin'].includes(t.type))
-    .reduce((a, t) => a + t.amount, 0);
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout'].includes(t.type))
+    .reduce((a, t) => a + (t.cashAmount || t.amount), 0);
   const bkashCashOut = bkashAll
     .filter((t) => ['cust_cashout', 'agent_cashout'].includes(t.type))
     .reduce((a, t) => a + (t.cashAmount || (t.amount - (t.profit || 0))), 0);

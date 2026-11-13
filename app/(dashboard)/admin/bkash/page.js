@@ -19,6 +19,12 @@ export default function BkashPage() {
     totalBundleExpenses: 0,
   });
 
+  // Cash summary from cash ledger
+  const [cashSummary, setCashSummary] = useState({ cashInHand: 0, capitalFromHome: 0 });
+  const [showAddCashModal, setShowAddCashModal] = useState(false);
+  const [homeCashAmount, setHomeCashAmount] = useState('');
+  const [homeCashDesc, setHomeCashDesc] = useState('বিকাশের ক্যাশ আউট ও নতুন মাল কেনার জন্য বাড়ি থেকে আনা ক্যাশ');
+
   // Form Mode & Tab: 'personal' | 'agent' | 'bundle'
   const [bkashType, setBkashType] = useState('personal');
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -31,6 +37,11 @@ export default function BkashPage() {
   const [ratePerThousand, setRatePerThousand] = useState('10'); // default 10 tk per 1000
   const [customerCharge, setCustomerCharge] = useState(''); // profit e.g. 100
   const [personalDesc, setPersonalDesc] = useState('');
+
+  // Personal Cash In (Send Money) specific states
+  const [cashInDigitalAmount, setCashInDigitalAmount] = useState('');
+  const [cashInReceivedCash, setCashInReceivedCash] = useState('');
+  const [cashInFee, setCashInFee] = useState('');
 
   // Agent Transaction States
   // agent types: 'agent_cashin' | 'agent_cashout'
@@ -88,7 +99,81 @@ export default function BkashPage() {
         }
       })
       .catch(() => {});
+
+    fetch('/api/cash?t=' + Date.now())
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.summary) {
+          setCashSummary({
+            cashInHand: d.summary.cashInHand || 0,
+            capitalFromHome: d.summary.capitalFromHome || 0,
+          });
+        }
+      })
+      .catch(() => {});
   }
+
+  // Quick Add Capital From Home directly from bKash page
+  async function handleAddHomeCash(e) {
+    e.preventDefault();
+    const amt = Number(homeCashAmount);
+    if (!amt || amt <= 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/cash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'in',
+        source: 'home_capital',
+        category: 'বাড়ি থেকে আনা (বিকাশ ও মাল কেনা)',
+        amount: amt,
+        description: homeCashDesc.trim() || 'বিকাশ ও মাল রাখার জন্য বাড়ি থেকে আনা ক্যাশ',
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('ক্যাশ জমা করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ বাড়ি থেকে আনা ক্যাশ সফলভাবে ক্যাশবাক্সে জমা হয়েছে!');
+    setShowAddCashModal(false);
+    setHomeCashAmount('');
+    loadData();
+  }
+
+  // Personal Cash In / Send Money calculations
+  // Scenario: shopkeeper sends 5000 from SIM to customer, takes 5010 cash from customer (10 profit),
+  // OR takes exact 5000 cash from customer (0 profit).
+  const handleCashInDigitalChange = (val) => {
+    setCashInDigitalAmount(val);
+    const digital = Number(val) || 0;
+    const fee = Number(cashInFee) || 0;
+    const totalCash = digital + fee;
+    setCashInReceivedCash(totalCash ? String(totalCash) : '');
+    setPersonalAmount(val);
+    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${totalCash}৳, লাভ +${fee}৳)`);
+  };
+
+  const handleCashInFeeChange = (val) => {
+    setCashInFee(val);
+    const digital = Number(cashInDigitalAmount) || 0;
+    const fee = Number(val) || 0;
+    const totalCash = digital + fee;
+    setCashInReceivedCash(totalCash ? String(totalCash) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${totalCash}৳, লাভ +${fee}৳)`);
+  };
+
+  const handleCashInReceivedChange = (val) => {
+    setCashInReceivedCash(val);
+    const received = Number(val) || 0;
+    const digital = Number(cashInDigitalAmount) || 0;
+    const fee = Math.max(0, received - digital);
+    setCashInFee(fee ? String(fee) : '');
+    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${received}৳, লাভ +${fee}৳)`);
+  };
 
   // Personal Customer Cash Out calculations
   // Scenario: customer sends 10100 to SIM, shop gives 10000 cash, profit is 100.
@@ -183,8 +268,26 @@ export default function BkashPage() {
   async function submitPersonalTx(e) {
     e.preventDefault();
     const isCashout = personalTxType === 'cust_cashout';
-    const digitalAmt = Number(personalAmount);
-    const cashAmt = isCashout ? Number(cashGivenToCust) || digitalAmt : digitalAmt;
+    const isCashin = personalTxType === 'cust_cashin';
+
+    let digitalAmt = Number(personalAmount);
+    let cashAmt = digitalAmt;
+    let profit = 0;
+    let rate = 0;
+    let chg = 0;
+
+    if (isCashout) {
+      digitalAmt = Number(personalAmount);
+      cashAmt = Number(cashGivenToCust) || digitalAmt;
+      chg = Number(customerCharge) || 0;
+      rate = Number(ratePerThousand) || 0;
+      profit = chg;
+    } else if (isCashin) {
+      digitalAmt = Number(cashInDigitalAmount || personalAmount);
+      cashAmt = Number(cashInReceivedCash || personalAmount);
+      profit = Number(cashInFee) || 0;
+      chg = profit;
+    }
 
     if (!digitalAmt || digitalAmt <= 0) {
       toast.error('সঠিক টাকার পরিমাণ লিখুন');
@@ -194,10 +297,6 @@ export default function BkashPage() {
     const selectedAcc = accounts.find((a) => a._id === selectedAccountId);
 
     setLoading(true);
-    const chg = isCashout ? Number(customerCharge) || 0 : 0;
-    const rate = isCashout ? Number(ratePerThousand) || 0 : 0;
-    const profit = isCashout ? chg : 0;
-
     const res = await fetch('/api/bkash', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -206,7 +305,7 @@ export default function BkashPage() {
         accountId: selectedAccountId,
         accountNumber: selectedAcc ? selectedAcc.number : '',
         type: personalTxType,
-        description: personalDesc || 'পার্সোনাল লেনদেন',
+        description: personalDesc || (isCashin ? 'কাস্টমার সেন্ড মানি / ক্যাশ ইন' : 'পার্সোনাল লেনদেন'),
         amount: digitalAmt, // digital amount credited to or debited from SIM balance
         cashAmount: cashAmt, // physical cash handed out or taken
         ratePerThousand: rate,
@@ -223,6 +322,9 @@ export default function BkashPage() {
     setPersonalAmount('');
     setCashGivenToCust('');
     setCustomerCharge('');
+    setCashInDigitalAmount('');
+    setCashInReceivedCash('');
+    setCashInFee('');
     setPersonalDesc('');
     loadData();
   }
@@ -328,49 +430,106 @@ export default function BkashPage() {
       {/* Top Header */}
       <div className="topbar">
         <div>
-          <h2>📱 bKash ডিজিটাল হিসাব ও লেজার</h2>
+          <h2>📱 bKash ও ক্যাশ সার্ভিস ড্যাশবোর্ড</h2>
           <div className="sub">
-            বিকাশ পার্সোনাল কাস্টমার সার্ভিস, এজেন্ট ক্যাশ-ইন/আউট এবং সেন্ড মানি বান্ডেল হিসাব
+            বিকাশ ক্যাশআউট, ক্যাশইন, বাড়ি থেকে আনা মূলধন ও সেন্ড মানি বান্ডেল হিসাব
           </div>
         </div>
-        <button className="btn pink" onClick={() => setShowAccModal(true)}>
-          ➕ নতুন bKash নম্বর যোগ করুন
-        </button>
+        <div className="flex" style={{ gap: 8 }}>
+          <button className="btn green" onClick={() => setShowAddCashModal(true)}>
+            🏠 বাড়ি থেকে ক্যাশ ড্রয়ারে আনুন
+          </button>
+          <button className="btn pink" onClick={() => setShowAccModal(true)}>
+            ➕ নতুন bKash নম্বর যোগ করুন
+          </button>
+        </div>
       </div>
 
-      {/* Top Profit & Balance Cards */}
+      {/* Top 4 Key KPI Cards: Cash In Hand, SIM Wallets, Capital from Home, Net Profit */}
       <div className="grid cols-4 mb" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ borderLeft: '4px solid #ec4899' }}>
-          <div className="label">মোট বিকাশ ব্যালেন্স (All Wallets)</div>
-          <div className="value pink">{taka(totalBalance)}</div>
+        <div
+          className="card"
+          style={{
+            borderLeft: `5px solid ${cashSummary.cashInHand >= 0 ? '#16a34a' : '#dc2626'}`,
+            background: cashSummary.cashInHand >= 0 ? '#f0fdf4' : '#fef2f2',
+          }}
+        >
+          <div className="flex between align-center">
+            <span className="label" style={{ fontWeight: 'bold' }}>💰 ক্যাশবাক্সে নগদ টাকা</span>
+            <button
+              className="btn sm green"
+              style={{ padding: '2px 8px', fontSize: 11 }}
+              onClick={() => setShowAddCashModal(true)}
+            >
+              + ক্যাশ আনুন
+            </button>
+          </div>
+          <div className={`value ${cashSummary.cashInHand >= 0 ? 'green' : 'red'}`} style={{ fontSize: 28, marginTop: 4 }}>
+            {taka(cashSummary.cashInHand)}
+          </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            নিবন্ধিত {accounts.length} টি নম্বরে মোট টাকা
+            ক্যাশআউটে কাস্টমারকে দেওয়ার জন্য নগদ ক্যাশ
+          </div>
+        </div>
+
+        <div className="card" style={{ borderLeft: '4px solid #ec4899', background: '#fdf2f8' }}>
+          <div className="label">📱 মোট বিকাশ ব্যালেন্স (All SIMs)</div>
+          <div className="value pink" style={{ fontSize: 28 }}>{taka(totalBalance)}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            নিবন্ধিত {accounts.length} টি সিমে মোট ডিজিটাল ব্যালেন্স
+          </div>
+        </div>
+
+        <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
+          <div className="label">🏠 বাড়ি থেকে আনা মোট ক্যাশ</div>
+          <div className="value blue" style={{ fontSize: 28 }}>{taka(cashSummary.capitalFromHome)}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            বিকাশ ও মাল কেনার মূলধন
           </div>
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
-          <div className="label">চলতি মাসের গ্রস লাভ (Gross)</div>
-          <div className="value green">{taka(stats.monthlyGrossProfit)}</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            চার্জ ও কমিশন বাবদ অর্জিত আয়
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid #ef4444' }}>
-          <div className="label">চলতি মাসের বান্ডেল খরচ (Bundle)</div>
-          <div className="value red">-{taka(stats.monthlyBundleExpenses)}</div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            সিমগুলোতে সেন্ড মানি বান্ডেল ক্রয়
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
-          <div className="label">চলতি মাসের নিট লাভ (Net Profit)</div>
-          <div className={`value ${stats.monthlyProfit >= 0 ? 'green' : 'red'}`}>
+          <div className="label">📈 চলতি মাসের নিট লাভ (Net)</div>
+          <div className={`value ${stats.monthlyProfit >= 0 ? 'green' : 'red'}`} style={{ fontSize: 28 }}>
             {taka(stats.monthlyProfit)}
           </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            বান্ডেল খরচ বিয়োগের পর নিট লাভ
+            গ্রস {taka(stats.monthlyGrossProfit)} − বান্ডেল {taka(stats.monthlyBundleExpenses)}
+          </div>
+        </div>
+      </div>
+
+      {/* Cash Flow Interactive Rules & Mechanics Guide */}
+      <div
+        className="card mb"
+        style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          border: '1px solid #cbd5e1',
+          padding: '12px 18px',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: 14, marginBottom: 6 }}>
+          🔄 বিকাশ ও ক্যাশবাক্সের লেনদেন নিয়ম (Cash vs Digital Balance Guide):
+        </div>
+        <div className="grid cols-3" style={{ gap: 10, fontSize: 12.5, lineHeight: 1.6 }}>
+          <div style={{ background: '#ffffff', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #16a34a' }}>
+            <b style={{ color: '#15803d' }}>📥 কাস্টমার ক্যাশআউট (টাকা তুললে):</b>
+            <div>• কাস্টমার সিমে ব্যালেন্স পাঠাবে ➜ <b className="pink">+সিমে ব্যালেন্স বাড়বে</b></div>
+            <div>• ক্যাশবাক্স থেকে নগদ ক্যাশ দিবেন ➜ <b className="red">−ক্যাশবাক্স কমবে</b></div>
+            <div>• কাস্টমার থেকে অতিরিক্ত ফি ➜ <b className="green">+আপনার লাভ</b></div>
+          </div>
+          <div style={{ background: '#ffffff', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #2563eb' }}>
+            <b style={{ color: '#1d4ed8' }}>📤 কাস্টমার ক্যাশইন / সেন্ড মানি:</b>
+            <div>• কাস্টমার আপনাকে নগদ ক্যাশ দেবে ➜ <b className="green">+ক্যাশবাক্স বাড়বে</b></div>
+            <div>• সিম থেকে ব্যালেন্স পাঠাবেন ➜ <b className="red">−সিমে ব্যালেন্স কমবে</b></div>
+            <div>• কাস্টমার ফি দিলে ➜ <b className="green">+আপনার লাভ</b></div>
+          </div>
+          <div style={{ background: '#ffffff', padding: '8px 12px', borderRadius: 8, borderLeft: '3px solid #f59e0b' }}>
+            <b style={{ color: '#b45309' }}>🏠 বাড়ি থেকে ক্যাশ আনা ও মাল কেনা:</b>
+            <div>• ক্যাশআউট বা মাল কেনার জন্য ক্যাশ আনলে ➜ <b className="blue">+ক্যাশবাক্সে জমা</b></div>
+            <div>• পাইকারি মাল কেনা ও খরচ ➜ <b className="red">−ক্যাশবাক্স কমবে</b></div>
+            <div>• সেন্ড মানি বান্ডেল ক্রয় ➜ <b className="amber">−বিকাশ লাভ থেকে বাদ</b></div>
           </div>
         </div>
       </div>
@@ -596,9 +755,69 @@ export default function BkashPage() {
                       💡 লেনদেনের নিখুঁত হিসাব বিবরণী:
                     </div>
                     <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
-                      • আপনার বিকাশ সিমে ঢুকবে: <b style={{ color: '#15803d' }}>+{taka(Number(personalAmount) || 0)}</b>
-                      <br />• কাস্টমারকে নগদ ক্যাশ দিবেন: <b style={{ color: '#dc2626' }}>-{taka(Number(cashGivenToCust) || 0)}</b>
+                      • আপনার বিকাশ সিমে ঢুকবে: <b style={{ color: '#15803d' }}>+{taka(Number(personalAmount) || 0)}</b> (ডিজিটাল ব্যালেন্স বাড়বে)
+                      <br />• ক্যাশবাক্স থেকে কাস্টমারকে নগদ ক্যাশ দেবেন: <b style={{ color: '#dc2626' }}>-{taka(Number(cashGivenToCust) || 0)}</b> (ক্যাশ কমবে)
                       <br />• আপনার নিট লাভ: <b style={{ color: '#16a34a' }}>+{taka(Number(customerCharge) || 0)}</b>
+                    </div>
+                  </div>
+                </>
+              ) : personalTxType === 'cust_cashin' ? (
+                <>
+                  <div>
+                    <label>সিমে প্রেরিত ডিজিটাল ব্যালেন্স (৳) *</label>
+                    <input
+                      type="number"
+                      placeholder="যেমন: ৫০০০"
+                      value={cashInDigitalAmount}
+                      onChange={(e) => handleCashInDigitalChange(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label>আপনার লাভ / চার্জ (৳)</label>
+                    <input
+                      type="number"
+                      placeholder="যেমন: ১০ (বা ০)"
+                      value={cashInFee}
+                      onChange={(e) => handleCashInFeeChange(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ fontWeight: 'bold', color: '#15803d' }}>
+                      💵 কাস্টমার থেকে প্রাপ্ত মোট নগদ ক্যাশ (৳) *
+                    </label>
+                    <input
+                      type="number"
+                      style={{ fontSize: 16, fontWeight: 'bold', background: '#f0fdf4', borderColor: '#86efac' }}
+                      placeholder="যেমন: ৫০১০"
+                      value={cashInReceivedCash}
+                      onChange={(e) => handleCashInReceivedChange(e.target.value)}
+                      required
+                    />
+                    <small className="muted" style={{ display: 'block', marginTop: 4 }}>
+                      কাস্টমার আপনাকে নগদ যে টাকা হাতে দিলো (যা সরাসরি দোকানের ক্যাশবাক্সে জমা হবে)
+                    </small>
+                  </div>
+
+                  {/* Visual calculation preview for Cash In */}
+                  <div
+                    style={{
+                      gridColumn: '1 / -1',
+                      background: '#f0fdf4',
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      border: '1px solid #86efac',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: 6 }}>
+                      💡 ক্যাশ-ইন / সেন্ড মানি হিসাব বিবরণী:
+                    </div>
+                    <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
+                      • কাস্টমার থেকে নগদ ক্যাশ পাবেন: <b style={{ color: '#16a34a' }}>+{taka(Number(cashInReceivedCash) || 0)}</b> (ক্যাশবাক্সে নগদ টাকা বাড়বে)
+                      <br />• আপনার বিকাশ সিম থেকে ব্যালেন্স কমবে: <b style={{ color: '#dc2626' }}>-{taka(Number(cashInDigitalAmount) || 0)}</b> (ডিজিটাল ব্যালেন্স কমবে)
+                      <br />• আপনার লাভ / ফি: <b style={{ color: '#16a34a' }}>+{taka(Number(cashInFee) || 0)}</b>
                     </div>
                   </div>
                 </>
@@ -617,8 +836,8 @@ export default function BkashPage() {
 
               {personalTxType === 'self_cashout' && (
                 <div style={{ gridColumn: '1 / -1', background: '#eff6ff', padding: '10px 14px', borderRadius: 8, border: '1px solid #bfdbfe' }}>
-                  <div style={{ fontSize: 13, color: '#1e40af' }}>
-                    ℹ️ পার্সোনাল নম্বর থেকে ব্যালেন্স ক্যাশ করা হলে সংশ্লিষ্ট মোবাইল নম্বরের ব্যালেন্স <b>-{taka(Number(personalAmount) || 0)}</b> কমে যাবে এবং ক্যাশবাক্সে জমা হবে।
+                  <div style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.8 }}>
+                    ℹ️ পার্সোনাল নম্বর থেকে ব্যালেন্স ক্যাশ করা হলে সিম থেকে ব্যালেন্স <b>-{taka(Number(personalAmount) || 0)}</b> কমে যাবে এবং ক্যাশবাক্সে নগদ ক্যাশ <b>+{taka(Number(personalAmount) || 0)}</b> জমা হবে।
                   </div>
                 </div>
               )}
@@ -678,11 +897,17 @@ export default function BkashPage() {
               </div>
 
               <div style={{ gridColumn: '1 / -1', background: '#fdf4ff', padding: '10px 14px', borderRadius: 8, border: '1px solid #f5d0fe' }}>
-                <div style={{ fontSize: 13, color: '#86198f' }}>
+                <div style={{ fontSize: 13, color: '#86198f', lineHeight: 1.8 }}>
                   {agentTxType === 'agent_cashin' ? (
-                    <>• কাস্টমার থেকে পাবেন ক্যাশ, এজেন্টের ডিজিটাল ওয়ালেট থেকে কমবে: <b>-{taka(Number(agentAmount) || 0)}</b></>
+                    <>
+                      • কাস্টমার থেকে নগদ ক্যাশ পাবেন: <b className="green">+{taka(Number(agentAmount) || 0)}</b> (ক্যাশবাক্স বাড়বে)
+                      <br />• এজেন্টের ডিজিটাল ওয়ালেট থেকে ব্যালেন্স কমবে: <b className="red">-{taka(Number(agentAmount) || 0)}</b>
+                    </>
                   ) : (
-                    <>• কাস্টমারকে দিবেন ক্যাশ, এজেন্টের ডিজিটাল ওয়ালেটে বাড়বে: <b>+{taka(Number(agentAmount) || 0)}</b></>
+                    <>
+                      • কাস্টমারকে নগদ ক্যাশ দেবেন: <b className="red">-{taka(Number(agentAmount) || 0)}</b> (ক্যাশবাক্স কমবে)
+                      <br />• এজেন্টের ডিজিটাল ওয়ালেটে ব্যালেন্স বাড়বে: <b className="pink">+{taka(Number(agentAmount) || 0)}</b>
+                    </>
                   )}
                   <br />• বিকাশ থেকে আপনার অর্জিত কমিশন/লাভ: <b className="green">+{taka(Number(agentCommAmount) || 0)}</b>
                 </div>
@@ -797,8 +1022,13 @@ export default function BkashPage() {
                         </span>
                         <div style={{ fontSize: 12, fontWeight: 'bold', marginTop: 2 }}>{t.description}</div>
                         {t.cashAmount > 0 && t.type === 'cust_cashout' && (
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            ক্যাশ দেওয়া: {taka(t.cashAmount)}
+                          <div style={{ fontSize: 11, color: '#dc2626' }}>
+                            💸 ক্যাশ প্রদান: {taka(t.cashAmount)}
+                          </div>
+                        )}
+                        {t.cashAmount > 0 && t.type === 'cust_cashin' && (
+                          <div style={{ fontSize: 11, color: '#16a34a' }}>
+                            💵 ক্যাশ গ্রহণ: {taka(t.cashAmount)}
                           </div>
                         )}
                       </td>
@@ -897,6 +1127,76 @@ export default function BkashPage() {
                   সংরক্ষণ করুন
                 </button>
                 <button type="button" className="btn gray" onClick={() => setShowAccModal(false)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Capital From Home Modal directly from bKash counter */}
+      {showAddCashModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '460px', maxWidth: '92%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0 }}>🏠 বাড়ি থেকে আনা ক্যাশ ড্রয়ারে জমা করুন</h3>
+              <button className="btn sm text gray" onClick={() => setShowAddCashModal(false)}>✕</button>
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+              বিকাশ ক্যাশআউট সার্ভিস দেওয়া এবং পাইকারি নতুন মাল কেনার জন্য বাড়ি থেকে আনা নগদ টাকা ক্যাশবাক্সে জমা করুন।
+            </div>
+            <form className="form-grid mt8" onSubmit={handleAddHomeCash}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>টাকার পরিমাণ (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ২০০০০"
+                  value={homeCashAmount}
+                  onChange={(e) => setHomeCashAmount(e.target.value)}
+                  style={{ fontSize: 17, fontWeight: 'bold' }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label>বিবরণ / উদ্দেশ্য</label>
+                <input
+                  value={homeCashDesc}
+                  onChange={(e) => setHomeCashDesc(e.target.value)}
+                  placeholder="বিকাশের ক্যাশ আউট ও নতুন মাল কেনার জন্য বাড়ি থেকে আনা ক্যাশ"
+                />
+              </div>
+
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  background: '#f0fdf4',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  color: '#166534',
+                }}
+              >
+                💡 এই টাকাটি আপনার বর্তমান ক্যাশবাক্স এবং বাড়ি থেকে আনা মূলধনের সাথে সরাসরি যোগ হবে।
+              </div>
+
+              <div className="flex gap mt" style={{ gridColumn: '1 / -1' }}>
+                <button type="submit" className="btn green" style={{ flex: 1 }} disabled={loading}>
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '➕ ক্যাশবাক্সে জমা নিশ্চিত করুন'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setShowAddCashModal(false)}>
                   বাতিল
                 </button>
               </div>

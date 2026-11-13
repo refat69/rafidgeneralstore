@@ -15,7 +15,7 @@ export default function TodayTransactionsPage() {
     fetch('/api/today-transactions')
       .then((r) => r.json())
       .then(setData)
-      .catch(() => {});
+      .catch(() => { });
   }
 
   if (!data) return <div className="empty mt">আজকের লেনদেন লোড হচ্ছে...</div>;
@@ -46,11 +46,11 @@ export default function TodayTransactionsPage() {
 
   // Today's Capital from home
   const todayCapitalFromHome = cashTransactions
-    .filter((c) => c.type === 'in' && c.source === 'home_capital')
+    .filter((c) => c.type === 'in' && (c.source === 'home_capital' || (c.category && (c.category.includes('বাড়ি') || c.category.includes('মূলধন')))))
     .reduce((a, c) => a + c.amount, 0);
 
   const todayWithdrawnToHome = cashTransactions
-    .filter((c) => c.type === 'out' && c.source === 'withdraw_home')
+    .filter((c) => c.type === 'out' && (c.source === 'withdraw_home' || (c.category && (c.category.includes('বাড়ি') || c.category.includes('উত্তোলন')))))
     .reduce((a, c) => a + c.amount, 0);
 
   // Total Net Profit today

@@ -152,6 +152,45 @@ export default function CashPage() {
         </div>
       </div>
 
+      {/* Cash Flow Mechanics & Guide Card */}
+      <div
+        className="card mb"
+        style={{
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+          border: '1px solid #cbd5e1',
+          padding: '14px 18px',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: 14.5, marginBottom: 8 }}>
+          💡 ক্যাশবাক্স ও নগদ টাকার হিসাব বোঝার সহজ নিয়ম:
+        </div>
+        <div className="grid cols-3" style={{ gap: 12, fontSize: 13, lineHeight: 1.7 }}>
+          <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: 8, borderLeft: '4px solid #16a34a' }}>
+            <b style={{ color: '#15803d', fontSize: 13.5 }}>🟢 ক্যাশবাক্সে নগদ টাকা বাড়ে (+)</b>
+            <div>• <b>🏠 বাড়ি থেকে আনা ক্যাশ:</b> বিকাশ ও নতুন মাল তোলার জন্য আনা মূলধন</div>
+            <div>• <b>📲 বিকাশ ক্যাশ-ইন / সেন্ড মানি:</b> কাস্টমার নগদ ক্যাশ দিলো, সিম থেকে ব্যালেন্স নিলো</div>
+            <div>• <b>🛒 পণ্যের নগদ বিক্রি:</b> দোকানে কাস্টমার পণ্য কিনে ক্যাশ টাকা পরিশোধ করলো</div>
+            <div>• <b>⚡ মোবাইল রিচার্জ:</b> রিচার্জে কাস্টমার থেকে নগদ ক্যাশ গ্রহণ</div>
+          </div>
+          <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: 8, borderLeft: '4px solid #dc2626' }}>
+            <b style={{ color: '#b91c1c', fontSize: 13.5 }}>🔴 ক্যাশবাক্স থেকে নগদ টাকা কমে (−)</b>
+            <div>• <b>💸 বিকাশ ক্যাশ-আউট:</b> কাস্টমার সিমে ব্যালেন্স দিলো, আপনি ড্রয়ার থেকে নগদ ক্যাশ দিলেন</div>
+            <div>• <b>📦 নতুন মাল কেনা:</b> পাইকারি মহাজন বা কোম্পানিকে মালামাল ক্রয়ে নগদ পরিশোধ</div>
+            <div>• <b>🔻 সাধারণ দোকান খরচ:</b> ভাড়া, বিদ্যুৎ, চা-নাস্তা বা ক্যাশ দিয়ে বান্ডেল ক্রয়</div>
+            <div>• <b>📤 বাড়ি ফেরত / উত্তোলন:</b> ক্যাশবাক্স থেকে লাভ বা টাকা বাড়ি নিয়ে যাওয়া</div>
+          </div>
+          <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: 8, borderLeft: '4px solid #2563eb' }}>
+            <b style={{ color: '#1d4ed8', fontSize: 13.5 }}>🟦 ক্যাশবাক্সের বর্তমান আসল ক্যাশ</b>
+            <div>• <b>হাতে থাকা ক্যাশ = মোট জমা − মোট খরচ</b></div>
+            <div>• আপনি বাড়ি থেকে ক্যাশ আনলে ড্রয়ারে টাকা বাড়বে। কাস্টমার ক্যাশআউট নিলে বা নতুন মাল কিনলে ড্রয়ারের টাকা কমবে।</div>
+            <div className="mt" style={{ marginTop: 6, fontWeight: 'bold', color: '#047857' }}>
+              ✓ এই হিসাবের সাথে আপনার ড্রয়ারের ক্যাশ সবসময় ১০০% নিখুঁত থাকবে।
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 2-Column Breakdown Sections */}
       <div className="grid cols-2 mb" style={{ marginBottom: 16 }}>
         {/* Left Column: Today Cash Reconciliation */}
@@ -379,13 +418,22 @@ export default function CashPage() {
                   <select
                     value={formCategory}
                     onChange={(e) => {
-                      setFormCategory(e.target.value);
-                      if (e.target.value.includes('বিকাশ ও মাল')) {
-                        setFormDesc('বিকাশের ক্যাশ আউট ও নতুন মাল কেনার জন্য বাড়ি থেকে আনা ক্যাশ');
-                      } else if (e.target.value.includes('বিকাশ')) {
-                        setFormDesc('বিকাশ ক্যাশআউট সার্ভিসের জন্য আনা ক্যাশ');
-                      } else if (e.target.value.includes('মাল')) {
-                        setFormDesc('পাইকারি মাল কেনার জন্য আনা ক্যাশ');
+                      const val = e.target.value;
+                      setFormCategory(val);
+                      if (val === 'অন্যান্য ক্যাশ জমা') {
+                        setFormSource('other_in');
+                        setFormDesc('দোকানের ক্যাশবাক্সে সাধারণ ক্যাশ জমা');
+                      } else {
+                        setFormSource('home_capital');
+                        if (val.includes('বিকাশ ও মাল')) {
+                          setFormDesc('বিকাশের ক্যাশ আউট ও নতুন মাল কেনার জন্য বাড়ি থেকে আনা ক্যাশ');
+                        } else if (val.includes('বিকাশ')) {
+                          setFormDesc('বিকাশ ক্যাশআউট সার্ভিসের জন্য আনা ক্যাশ');
+                        } else if (val.includes('মাল')) {
+                          setFormDesc('পাইকারি মাল কেনার জন্য আনা ক্যাশ');
+                        } else {
+                          setFormDesc('দোকানে মূলধন বাবদ আনা ক্যাশ');
+                        }
                       }
                     }}
                   >
@@ -399,11 +447,18 @@ export default function CashPage() {
                   <select
                     value={formCategory}
                     onChange={(e) => {
-                      setFormCategory(e.target.value);
-                      if (e.target.value.includes('দিনের লাভ')) {
-                        setFormDesc('দিনের অর্জিত লাভ বাড়ি নিয়ে যাওয়া');
+                      const val = e.target.value;
+                      setFormCategory(val);
+                      if (val === 'অন্যান্য ক্যাশ উত্তোলন') {
+                        setFormSource('other_out');
+                        setFormDesc('দোকানের ক্যাশবাক্স থেকে অন্যান্য ক্যাশ উত্তোলন');
                       } else {
-                        setFormDesc('মালিকের ব্যক্তিগত উত্তোলন');
+                        setFormSource('withdraw_home');
+                        if (val.includes('দিনের লাভ')) {
+                          setFormDesc('দিনের অর্জিত লাভ বাড়ি নিয়ে যাওয়া');
+                        } else {
+                          setFormDesc('মালিকের ব্যক্তিগত খরচ / উত্তোলন');
+                        }
                       }
                     }}
                   >
