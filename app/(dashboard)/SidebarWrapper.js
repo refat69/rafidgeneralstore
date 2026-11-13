@@ -15,6 +15,7 @@ const nav = [
   { href: '/admin/recharge', label: 'মোবাইল রিচার্জ', en: 'Recharge', icon: '⚡' },
   { href: '/admin/baki', label: 'বাকি / পাওনা', en: 'Baki', icon: '🧾' },
   { href: '/admin/bkash', label: 'bKash', en: 'bKash', icon: '📱' },
+  { href: '/admin/bkash-b2b', label: 'বিকাশ পার্টনার হিসাব', en: 'bKash B2B', icon: '🤝' },
   { href: '/admin/expense', label: 'খরচ', en: 'Expense', icon: '💸' },
   { href: '/admin/customers', label: 'গ্রাহক তালিকা', en: 'Customers', icon: '👥' },
   { href: '/admin/offers', label: 'অফার ম্যানেজার', en: 'Offers', icon: '🎁' },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { taka, num } from '@/lib/money';
 import toast from 'react-hot-toast';
 
@@ -198,6 +199,11 @@ export default function BakiPage() {
           <div className="sub">
             আমাদের পাওনা: <b className="green">{taka(owe)}</b> &nbsp;•&nbsp; আমাদের দেনা: <b className="red">{taka(given)}</b>
           </div>
+        </div>
+        <div className="flex" style={{ gap: 8 }}>
+          <Link href="/admin/bkash-b2b" className="btn blue">
+            🤝 বিকাশ পার্টনার হিসাব (B2B)
+          </Link>
         </div>
       </div>
 

@@ -9,8 +9,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    fetch('/api/stats').then((r) => r.json()).then(setStats).catch(() => {});
-    fetch('/api/auth/me').then((r) => r.json()).then((d) => d.user && setUser(d.user)).catch(() => {});
+    fetch('/api/stats').then((r) => r.json()).then(setStats).catch(() => { });
+    fetch('/api/auth/me').then((r) => r.json()).then((d) => d.user && setUser(d.user)).catch(() => { });
   }, []);
 
   return (
@@ -74,57 +74,64 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid cols-2 mt" style={{ gap: 16 }}>
-            <div className="card">
-              <div className="label">
-                <span>bKash সর্বমোট ব্যালেন্স</span>
-                <Link href="/admin/bkash" className="pink" style={{ fontSize: 11 }}>বিকাশ লেজার →</Link>
+            <div className="grid cols-3 mt" style={{ gap: 16 }}>
+              <div className="card">
+                <div className="label">
+                  <span>bKash সর্বমোট ব্যালেন্স</span>
+                  <Link href="/admin/bkash" className="pink" style={{ fontSize: 11 }}>বিকাশ লেজার →</Link>
+                </div>
+                <div className="value pink">{taka(stats.bkashBalance)}</div>
               </div>
-              <div className="value pink">{taka(stats.bkashBalance)}</div>
+              <div className="card" style={{ borderLeft: '4px solid #be185d' }}>
+                <div className="label">
+                  <span>বিকাশ পার্টনার পাওনা (B2B)</span>
+                  <Link href="/admin/bkash-b2b" className="blue" style={{ fontSize: 11 }}>পার্টনার লেজার →</Link>
+                </div>
+                <div className={`value ${(stats.b2bCurrentDue || 0) >= 0 ? 'green' : 'red'}`}>{taka(stats.b2bCurrentDue || 0)}</div>
+              </div>
+              <div className="card">
+                <div className="label">বর্তমান মোট স্টক মূল্য</div>
+                <div className="value blue">{taka(stats.stockValue)}</div>
+              </div>
             </div>
-            <div className="card">
-              <div className="label">বর্তমান মোট স্টক মূল্য</div>
-              <div className="value blue">{taka(stats.stockValue)}</div>
-            </div>
-          </div>
 
-          <div className="grid cols-2 mt" style={{ gap: 16 }}>
-            <div className="card">
-              <div className="label">দোকানে মোট পণ্যের সংখ্যা</div>
-              <div className="value gray" style={{ fontSize: 28, fontWeight: 'bold' }}>{stats.productCount} টি</div>
-            </div>
-            <div className="card">
-              <div className="label">কম স্টক পণ্য সতর্কতা</div>
-              <div className={`value ${stats.lowStockCount > 0 ? 'red' : 'green'}`}>
-                {stats.lowStockCount} টি
+            <div className="grid cols-2 mt" style={{ gap: 16 }}>
+              <div className="card">
+                <div className="label">দোকানে মোট পণ্যের সংখ্যা</div>
+                <div className="value gray" style={{ fontSize: 28, fontWeight: 'bold' }}>{stats.productCount} টি</div>
+              </div>
+              <div className="card">
+                <div className="label">কম স্টক পণ্য সতর্কতা</div>
+                <div className={`value ${stats.lowStockCount > 0 ? 'red' : 'green'}`}>
+                  {stats.lowStockCount} টি
+                </div>
               </div>
             </div>
-          </div>
-        </>
+          </>
       )}
 
-      <div className="grid cols-2 mt">
-        <div className="card">
-          <h3>🔗 দ্রুত কাজ</h3>
-          <div className="grid cols-3 mt8">
-            <Link href="/admin/cash" className="btn green">💵 ক্যাশবাক্স</Link>
-            <Link href="/admin/sell" className="btn">🛒 বিক্রি</Link>
-            <Link href="/admin/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
-            <Link href="/admin/recharge" className="btn gray">⚡ রিচার্জ</Link>
-            <Link href="/admin/bkash" className="btn gray">📱 bKash</Link>
-            <Link href="/admin/expense" className="btn gray">💸 খরচ</Link>
-          </div>
-        </div>
+          <div className="grid cols-2 mt">
+            <div className="card">
+              <h3>🔗 দ্রুত কাজ</h3>
+              <div className="grid cols-3 mt8">
+                <Link href="/admin/cash" className="btn green">💵 ক্যাশবাক্স</Link>
+                <Link href="/admin/sell" className="btn">🛒 বিক্রি</Link>
+                <Link href="/admin/today-transactions" className="btn gray">📅 আজকের লেনদেন</Link>
+                <Link href="/admin/recharge" className="btn gray">⚡ রিচার্জ</Link>
+                <Link href="/admin/bkash" className="btn gray">📱 bKash</Link>
+                <Link href="/admin/expense" className="btn gray">💸 খরচ</Link>
+              </div>
+            </div>
 
-        <div className="card">
-          <h3>ℹ️ ড্যাশবোর্ড ব্যবহারের তথ্য</h3>
-          <div className="muted" style={{ fontSize: 14, lineHeight: 1.7, marginTop: 8 }}>
-            <p>• <b>আজকের লেনদেন:</b> আজকের দিনের রিচার্জ, বিক্রি, খরচ ও বিকাশের যাবতীয় বিস্তারিত লেনদেনের হিসাব এবং আজ কত টাকা লাভ হলো তা দেখতে বামের "আজকের লেনদেন" বাটনে ক্লিক করুন।</p>
-            <p>• <b>মোবাইল রিচার্জ:</b> মোবাইল রিচার্জের লাভ ও প্যাকেজ কমিশন আলাদা পেইজে হিসাব করার জন্য "রিচার্জ" সেকশনে যান।</p>
-            <p>• <b>বিকাশ এজেন্ট ও পার্সোনাল:</b> বিকাশ অপশনে গিয়ে এজেন্ট ক্যাশ-আউট কমিশন এবং পার্সোনাল কাস্টম ক্রয় মূল্যের উপর লাভ হিসাব করতে পারবেন।</p>
+            <div className="card">
+              <h3>ℹ️ ড্যাশবোর্ড ব্যবহারের তথ্য</h3>
+              <div className="muted" style={{ fontSize: 14, lineHeight: 1.7, marginTop: 8 }}>
+                <p>• <b>আজকের লেনদেন:</b> আজকের দিনের রিচার্জ, বিক্রি, খরচ ও বিকাশের যাবতীয় বিস্তারিত লেনদেনের হিসাব এবং আজ কত টাকা লাভ হলো তা দেখতে বামের "আজকের লেনদেন" বাটনে ক্লিক করুন।</p>
+                <p>• <b>মোবাইল রিচার্জ:</b> মোবাইল রিচার্জের লাভ ও প্যাকেজ কমিশন আলাদা পেইজে হিসাব করার জন্য "রিচার্জ" সেকশনে যান।</p>
+                <p>• <b>বিকাশ এজেন্ট ও পার্সোনাল:</b> বিকাশ অপশনে গিয়ে এজেন্ট ক্যাশ-আউট কমিশন এবং পার্সোনাল কাস্টম ক্রয় মূল্যের উপর লাভ হিসাব করতে পারবেন।</p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
+      );
 }

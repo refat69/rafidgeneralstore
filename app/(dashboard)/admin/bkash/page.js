@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { taka, num } from '@/lib/money';
 import toast from 'react-hot-toast';
 
@@ -436,6 +437,9 @@ export default function BkashPage() {
           </div>
         </div>
         <div className="flex" style={{ gap: 8 }}>
+          <Link href="/admin/bkash-b2b" className="btn blue">
+            🤝 পার্টনার ও ব্যাংক হিসাব (B2B)
+          </Link>
           <button className="btn green" onClick={() => setShowAddCashModal(true)}>
             🏠 বাড়ি থেকে ক্যাশ ড্রয়ারে আনুন
           </button>

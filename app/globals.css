@@ -356,5 +356,42 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Print styles for Memo / Invoice / Statement */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .sidebar,
+  .mobile-header,
+  .sidebar-backdrop,
+  .topbar,
+  .no-print,
+  button,
+  .btn {
+    display: none !important;
+  }
+  .main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    inset: auto !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  .printable-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
 
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Product, Sale, Baki, Bkash, BkashAccount, Expense, StockLog, Recharge, CashTransaction } from '@/lib/models';
+import { Product, Sale, Baki, Bkash, BkashAccount, Expense, StockLog, Recharge, CashTransaction, BkashB2BTransaction } from '@/lib/models';
 import { getSessionUserId } from '@/lib/auth';
 
 export async function GET() {
@@ -129,6 +129,12 @@ export async function GET() {
   const totalCashOut = withdrawnToHome + otherCashOut + bkashCashOut + bundleCashOut + stockPurchaseCash + expensesCash;
   const cashInHand = totalCashIn - totalCashOut;
 
+  // bKash B2B Partner Due
+  const b2bTxns = await BkashB2BTransaction.find().lean();
+  const b2bTotalSent = b2bTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+  const b2bTotalReceived = b2bTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
+  const b2bCurrentDue = b2bTotalSent - b2bTotalReceived;
+
   return NextResponse.json({
     totalSales,
     todaySales: todaySalesAmt,
@@ -148,5 +154,6 @@ export async function GET() {
     totalProfit,
     cashInHand,
     capitalFromHome,
+    b2bCurrentDue,
   });
 }
