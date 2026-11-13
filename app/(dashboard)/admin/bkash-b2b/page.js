@@ -10,17 +10,13 @@ export default function BkashB2BPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Selected partner filter: '' means all, or partnerId
+  // Selected partner ID
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
 
-  // Search & Type filters for the ledger
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'sent' | 'received'
-
-  // Modals: null | 'send' | 'receive' | 'partner' | 'memo'
+  // Modals: null | 'send' | 'receive' | 'expense' | 'opening' | 'partner' | 'memo'
   const [activeModal, setActiveModal] = useState(null);
 
-  // --- Form: Send bKash (আমি বিকাশ পাঠালাম) ---
+  // --- Form: Send bKash (বিকাশ পাঠালাম) ---
   const [sendPartnerId, setSendPartnerId] = useState('');
   const [sendAmount, setSendAmount] = useState('');
   const [sendTargetNumber, setSendTargetNumber] = useState('');
@@ -29,7 +25,7 @@ export default function BkashB2BPage() {
   const [sendDate, setSendDate] = useState('');
   const [sendNote, setSendNote] = useState('');
 
-  // --- Form: Receive Bank Payment (পার্টনার ব্যাংকে পাঠালো) ---
+  // --- Form: Receive Payment (পার্টনার ব্যাংকে পাঠালো) ---
   const [receivePartnerId, setReceivePartnerId] = useState('');
   const [receiveAmount, setReceiveAmount] = useState('');
   const [receiveBankName, setReceiveBankName] = useState('Islami Bank');
@@ -39,18 +35,27 @@ export default function BkashB2BPage() {
   const [receiveDate, setReceiveDate] = useState('');
   const [receiveNote, setReceiveNote] = useState('');
 
+  // --- Form: Daily Expense (আজকের খরচ যোগ) ---
+  const [expensePartnerId, setExpensePartnerId] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseNote, setExpenseNote] = useState('আজকের দৈনিক খরচ');
+  const [expenseDate, setExpenseDate] = useState('');
+
+  // --- Form: Opening Due (আগের পাওনা সেট করা) ---
+  const [openingPartnerId, setOpeningPartnerId] = useState('');
+  const [openingAmount, setOpeningAmount] = useState('');
+
   // --- Form: Add / Edit Partner ---
   const [editPartnerId, setEditPartnerId] = useState(null);
   const [partnerName, setPartnerName] = useState('');
   const [partnerPhone, setPartnerPhone] = useState('');
+  const [partnerOpeningDue, setPartnerOpeningDue] = useState('');
   const [partnerBkashNumbers, setPartnerBkashNumbers] = useState('');
   const [partnerBankDetails, setPartnerBankDetails] = useState('');
   const [partnerNotes, setPartnerNotes] = useState('');
 
-  // --- Memo / Statement Filters ---
-  const [memoPeriod, setMemoPeriod] = useState('all'); // 'all' | 'today' | '7days' | 'month' | 'custom'
-  const [memoStartDate, setMemoStartDate] = useState('');
-  const [memoEndDate, setMemoEndDate] = useState('');
+  // --- Memo View Mode ---
+  const [memoPeriod, setMemoPeriod] = useState('today'); // 'today' | 'all' | '7days' | 'month'
 
   useEffect(() => {
     loadData();
@@ -65,11 +70,13 @@ export default function BkashB2BPage() {
       .then((r) => r.json())
       .then((d) => {
         setData(d);
-        // Auto select first partner if not set and available
         if (d.partners && d.partners.length > 0 && !selectedPartnerId) {
-          setSelectedPartnerId(d.partners[0]._id);
-          setSendPartnerId(d.partners[0]._id);
-          setReceivePartnerId(d.partners[0]._id);
+          const firstId = d.partners[0]._id;
+          setSelectedPartnerId(firstId);
+          setSendPartnerId(firstId);
+          setReceivePartnerId(firstId);
+          setExpensePartnerId(firstId);
+          setOpeningPartnerId(firstId);
           if (d.partners[0].bkashNumbers && d.partners[0].bkashNumbers[0]) {
             setSendTargetNumber(d.partners[0].bkashNumbers[0]);
           }
@@ -78,26 +85,24 @@ export default function BkashB2BPage() {
       .catch(() => { });
   }
 
+  const currentPartner = data?.partners?.find((p) => p._id === selectedPartnerId);
+
   // Quick Open Modal Helpers
-  function openSendModal(pId) {
-    const targetId = pId || selectedPartnerId || (data?.partners[0]?._id || '');
+  function openSendModal() {
+    const targetId = selectedPartnerId || (data?.partners[0]?._id || '');
     setSendPartnerId(targetId);
     const p = data?.partners?.find((x) => x._id === targetId);
-    if (p && p.bkashNumbers && p.bkashNumbers.length > 0) {
-      setSendTargetNumber(p.bkashNumbers[0]);
-    } else {
-      setSendTargetNumber('');
-    }
+    setSendTargetNumber(p?.bkashNumbers?.[0] || '');
     setSendAmount('');
-    setSendOurAccountId(data?.accounts && data.accounts.length > 0 ? data.accounts[0]._id : '');
+    setSendOurAccountId(data?.accounts?.[0]?._id || '');
     setSendTrxId('');
     setSendNote('');
     setSendDate(new Date().toISOString().slice(0, 16));
     setActiveModal('send');
   }
 
-  function openReceiveModal(pId) {
-    const targetId = pId || selectedPartnerId || (data?.partners[0]?._id || '');
+  function openReceiveModal() {
+    const targetId = selectedPartnerId || (data?.partners[0]?._id || '');
     setReceivePartnerId(targetId);
     const p = data?.partners?.find((x) => x._id === targetId);
     if (p && p.bankDetails) {
@@ -112,10 +117,28 @@ export default function BkashB2BPage() {
     setActiveModal('receive');
   }
 
+  function openExpenseModal() {
+    const targetId = selectedPartnerId || (data?.partners[0]?._id || '');
+    setExpensePartnerId(targetId);
+    setExpenseAmount('');
+    setExpenseNote('আজকের দৈনিক খরচ');
+    setExpenseDate(new Date().toISOString().slice(0, 16));
+    setActiveModal('expense');
+  }
+
+  function openOpeningDueModal() {
+    const targetId = selectedPartnerId || (data?.partners[0]?._id || '');
+    setOpeningPartnerId(targetId);
+    const p = data?.partners?.find((x) => x._id === targetId);
+    setOpeningAmount(p?.openingDue ? String(p.openingDue) : '');
+    setActiveModal('opening');
+  }
+
   function openNewPartnerModal() {
     setEditPartnerId(null);
     setPartnerName('');
     setPartnerPhone('');
+    setPartnerOpeningDue('');
     setPartnerBkashNumbers('');
     setPartnerBankDetails('');
     setPartnerNotes('');
@@ -126,13 +149,14 @@ export default function BkashB2BPage() {
     setEditPartnerId(p._id);
     setPartnerName(p.name || '');
     setPartnerPhone(p.phone || '');
+    setPartnerOpeningDue(p.openingDue ? String(p.openingDue) : '');
     setPartnerBkashNumbers((p.bkashNumbers || []).join(', '));
     setPartnerBankDetails(p.bankDetails || '');
     setPartnerNotes(p.notes || '');
     setActiveModal('partner');
   }
 
-  // --- Handlers: Submit Partner ---
+  // --- Handlers: Save Partner ---
   async function handleSavePartner(e) {
     e.preventDefault();
     if (!partnerName.trim()) {
@@ -149,6 +173,7 @@ export default function BkashB2BPage() {
         id: editPartnerId,
         name: partnerName.trim(),
         phone: partnerPhone.trim(),
+        openingDue: Number(partnerOpeningDue) || 0,
         bkashNumbers: partnerBkashNumbers,
         bankDetails: partnerBankDetails.trim(),
         notes: partnerNotes.trim(),
@@ -166,7 +191,34 @@ export default function BkashB2BPage() {
     loadData();
   }
 
-  // --- Handlers: Submit Send bKash ---
+  // --- Handlers: Update Opening Due ---
+  async function handleSaveOpeningDue(e) {
+    e.preventDefault();
+    if (!openingPartnerId) return;
+
+    setLoading(true);
+    const res = await fetch('/api/bkash-b2b', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'update_partner',
+        id: openingPartnerId,
+        openingDue: Number(openingAmount) || 0,
+      }),
+    });
+    setLoading(false);
+
+    if (!res.ok) {
+      toast.error('আগের পাওনা আপডেট করতে সমস্যা হয়েছে');
+      return;
+    }
+
+    toast.success('✅ আগের পাওনা সফলভাবে আপডেট হয়েছে!');
+    setActiveModal(null);
+    loadData();
+  }
+
+  // --- Handlers: Send bKash ---
   async function handleSendBkash(e) {
     e.preventDefault();
     const amt = Number(sendAmount);
@@ -179,7 +231,7 @@ export default function BkashB2BPage() {
       return;
     }
     if (!sendTargetNumber.trim()) {
-      toast.error('যে বিকাশ নম্বরে টাকা পাঠিয়েছেন তা লিখুন');
+      toast.error('পার্টনারের বিকাশ নম্বর লিখুন');
       return;
     }
 
@@ -202,17 +254,17 @@ export default function BkashB2BPage() {
     setLoading(false);
 
     if (!res.ok) {
-      toast.error('বিকাশ পাঠানোর তথ্য সংরক্ষণে সমস্যা হয়েছে');
+      toast.error('বিকাশ পাঠানো সংরক্ষণ করতে সমস্যা হয়েছে');
       return;
     }
 
-    toast.success('✅ বিকাশ পাঠানো সফলভাবে সংরক্ষিত হয়েছে! (পাওনা বৃদ্ধি পেয়েছে)');
+    toast.success('✅ বিকাশ পাঠানো সফলভাবে যোগ হয়েছে! (+ পাওনা বৃদ্ধি)');
     setActiveModal(null);
     setSendAmount('');
     loadData();
   }
 
-  // --- Handlers: Submit Receive Bank Payment ---
+  // --- Handlers: Receive Bank Payment ---
   async function handleReceiveBank(e) {
     e.preventDefault();
     const amt = Number(receiveAmount);
@@ -245,29 +297,68 @@ export default function BkashB2BPage() {
     setLoading(false);
 
     if (!res.ok) {
-      toast.error('ব্যাংক পেমেন্ট সংরক্ষণে সমস্যা হয়েছে');
+      toast.error('পেমেন্ট সংরক্ষণ করতে সমস্যা হয়েছে');
       return;
     }
 
-    toast.success('✅ ব্যাংকে পেমেন্ট প্রাপ্তি সফলভাবে সংরক্ষিত হয়েছে! (পাওনা হ্রাস পেয়েছে)');
+    toast.success('✅ ব্যাংকে পেমেন্ট প্রাপ্তি সফলভাবে সংরক্ষিত হয়েছে! (− পাওনা হ্রাস)');
     setActiveModal(null);
     setReceiveAmount('');
     loadData();
   }
 
-  // --- Handlers: Delete Transaction ---
+  // --- Handlers: Add Daily Expense ---
+  async function handleAddExpense(e) {
+    e.preventDefault();
+    const amt = Number(expenseAmount);
+    if (!amt || amt <= 0) {
+      toast.error('সঠিক খরচের পরিমাণ লিখুন');
+      return;
+    }
+    if (!expensePartnerId) {
+      toast.error('পার্টনার নির্বাচন করুন');
+      return;
+    }
+
+    setLoading(true);
+    const res = await fetch('/api/bkash-b2b', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_transaction',
+        partnerId: expensePartnerId,
+        type: 'expense',
+        amount: amt,
+        note: expenseNote.trim() || 'আজকের দৈনিক খরচ',
+        date: expenseDate ? new Date(expenseDate) : new Date(),
+      }),
+    });
+    setLoading(false);
+
+    if (!res.ok) {
+      toast.error('খরচ যোগ করতে সমস্যা হয়েছে');
+      return;
+    }
+
+    toast.success('✅ দৈনিক খরচ সফলভাবে পার্টনারের পাওনায় যোগ হয়েছে!');
+    setActiveModal(null);
+    setExpenseAmount('');
+    loadData();
+  }
+
+  // --- Delete Transaction ---
   async function handleDeleteTx(id) {
-    if (!confirm('এই লেনদেনটি মুছে ফেলতে চান? সংশ্লিষ্ট পাওনা ও ব্যালেন্স পূর্বাবস্থায় ফিরে যাবে।')) return;
+    if (!confirm('এই লেনদেনটি মুছে ফেলতে চান? সংশ্লিষ্ট হিসাব পূর্বাবস্থায় ফিরে যাবে।')) return;
     await fetch(`/api/bkash-b2b?id=${id}`, { method: 'DELETE' });
     toast.success('লেনদেন মুছে ফেলা হয়েছে');
     loadData();
   }
 
-  // --- Handlers: Delete Partner ---
+  // --- Delete Partner ---
   async function handleDeletePartner(id) {
     if (!confirm('সতর্কতা: এই পার্টনারকে মুছলে তার সম্পর্কিত সকল লেনদেনও মুছে যাবে! নিশ্চিত তো?')) return;
     await fetch(`/api/bkash-b2b?partnerId=${id}`, { method: 'DELETE' });
-    toast.success('পার্টনার ও তার সকল লেনদেন মুছে ফেলা হয়েছে');
+    toast.success('পার্টনার মুছে ফেলা হয়েছে');
     setSelectedPartnerId('');
     loadData();
   }
@@ -276,57 +367,20 @@ export default function BkashB2BPage() {
 
   const { partners = [], transactions = [], accounts = [], summary } = data;
 
-  // Selected partner object
-  const currentPartner = partners.find((p) => p._id === selectedPartnerId);
+  // Selected partner or first
+  const activeP = currentPartner || partners[0];
 
-  // Filtered transactions for the main table
-  const ledgerTxns = transactions.filter((t) => {
-    // Partner filter
-    if (selectedPartnerId && t.partnerId !== selectedPartnerId) return false;
-    // Type filter
-    if (typeFilter !== 'all' && t.type !== typeFilter) return false;
-    // Search query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchNum = (t.targetBkashNumber || '').toLowerCase().includes(q);
-      const matchBank = (t.bankName || '').toLowerCase().includes(q);
-      const matchTrx = (t.trxId || '').toLowerCase().includes(q);
-      const matchNote = (t.note || '').toLowerCase().includes(q);
-      const matchPartner = (t.partnerName || '').toLowerCase().includes(q);
-      if (!matchNum && !matchBank && !matchTrx && !matchNote && !matchPartner) return false;
-    }
-    return true;
-  });
+  // Transactions of active partner
+  const partnerTxns = activeP
+    ? transactions.filter((t) => t.partnerId === activeP._id)
+    : transactions;
 
-  // Partner specific or global active stats
-  const activeStats = currentPartner
-    ? {
-      name: currentPartner.name,
-      phone: currentPartner.phone,
-      totalSent: currentPartner.totalSent || 0,
-      totalReceived: currentPartner.totalReceived || 0,
-      currentDue: currentPartner.currentDue || 0,
-      count: currentPartner.txCount || 0,
-    }
-    : {
-      name: 'সকল পার্টনার (All Partners)',
-      phone: `${partners.length} জন পার্টনার`,
-      totalSent: summary.totalSent || 0,
-      totalReceived: summary.totalReceived || 0,
-      currentDue: summary.totalDue || 0,
-      count: summary.txCount || 0,
-    };
+  // Today's filter
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-  // --- Memo Calculations ---
-  const memoTxns = (selectedPartnerId
-    ? transactions.filter((t) => t.partnerId === selectedPartnerId)
-    : transactions
-  ).filter((t) => {
-    if (memoPeriod === 'today') {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      return new Date(t.date) >= todayStart;
-    }
+  const memoTxns = partnerTxns.filter((t) => {
+    if (memoPeriod === 'today') return new Date(t.date) >= todayStart;
     if (memoPeriod === '7days') {
       const d = new Date();
       d.setDate(d.getDate() - 7);
@@ -338,52 +392,60 @@ export default function BkashB2BPage() {
       m.setHours(0, 0, 0, 0);
       return new Date(t.date) >= m;
     }
-    if (memoPeriod === 'custom') {
-      if (memoStartDate && new Date(t.date) < new Date(memoStartDate)) return false;
-      if (memoEndDate) {
-        const end = new Date(memoEndDate);
-        end.setHours(23, 59, 59, 999);
-        if (new Date(t.date) > end) return false;
-      }
-    }
-    return true;
+    return true; // 'all'
   });
 
-  const memoTotalSent = memoTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
-  const memoTotalReceived = memoTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
-  const memoNetDue = memoTotalSent - memoTotalReceived;
+  const memoSent = memoTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+  const memoExpense = memoTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0);
+  const memoReceived = memoTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
+  const memoPrevDue = (memoPeriod === 'today' ? (activeP?.previousDue || 0) : (activeP?.openingDue || 0));
+  const memoNetDue = memoPrevDue + memoSent + memoExpense - memoReceived;
 
-  // WhatsApp formatted text generator
+  // --- WhatsApp Text Generator ---
   function generateWhatsAppText() {
     const shop = user?.shopName || 'আমার দোকান';
-    const pName = currentPartner ? currentPartner.name : 'পার্টনার';
+    const pName = activeP?.name || 'পার্টনার';
     const dateStr = new Date().toLocaleDateString('bn-BD');
 
-    let text = `*🏪 ${shop} - বিকাশ B2B হিসাব মেমো*\n`;
+    let text = `*🏪 ${shop} - বিকাশ পার্টনার দৈনিক হিসাব মেমো*\n`;
     text += `📅 তারিখ: ${dateStr}\n`;
-    text += `👤 গ্রাহক / পার্টনার: ${pName}\n`;
-    text += `----------------------------------\n`;
-    text += `📤 মোট বিকাশ পাঠানো: ${taka(memoTotalSent)}\n`;
-    text += `📥 মোট ব্যাংকে জমা: ${taka(memoTotalReceived)}\n`;
-    text += `----------------------------------\n`;
-    text += `💰 *বর্তমান অবশিষ্ট পাওনা:* ${taka(memoNetDue)}\n\n`;
-    text += `📋 *লেনদেন বিবরণী (${memoTxns.length} টি):*\n`;
+    text += `👤 পার্টনার: ${pName} ${activeP?.phone ? `(${activeP.phone})` : ''}\n`;
+    text += `-------------------------------------------\n`;
+    text += `🔹 পূর্বের বকেয়া পাওনা: ${taka(memoPrevDue)}\n`;
+    text += `➕ আজকের বিকাশ পাঠানো: ${taka(memoSent)}\n`;
+    if (memoExpense > 0) {
+      text += `➕ আজকের খরচ বাবদ: ${taka(memoExpense)}\n`;
+    }
+    text += `-------------------------------------------\n`;
+    text += `📊 মোট পাওনা দাবি: ${taka(memoPrevDue + memoSent + memoExpense)}\n`;
+    text += `➖ আজকে ব্যাংকে দিয়েছেন: ${taka(memoReceived)}\n`;
+    text += `-------------------------------------------\n`;
+    text += `💰 *আজকের অবশিষ্ট নিট পাওনা:* ${taka(memoNetDue)}\n\n`;
 
-    memoTxns.slice(0, 15).forEach((t, i) => {
-      const d = new Date(t.date).toLocaleDateString('bn-BD');
-      if (t.type === 'sent') {
-        text += `${i + 1}. [${d}] বিকাশ পাঠানো: ${taka(t.amount)} (${t.targetBkashNumber || 'বিকাশ'})\n`;
-      } else {
-        text += `${i + 1}. [${d}] ব্যাংক জমা: ${taka(t.amount)} (${t.bankName || 'ব্যাংক'})\n`;
-      }
-    });
-
-    if (memoTxns.length > 15) {
-      text += `... আরও ${memoTxns.length - 15} টি লেনদেন রয়েছে।\n`;
+    if (memoTxns.length > 0) {
+      text += `📋 *আজকের লেনদেন বিস্তারিত:*\n`;
+      memoTxns.forEach((t, i) => {
+        if (t.type === 'sent') {
+          text += `${i + 1}. বিকাশ পাঠানো: ${taka(t.amount)} (${t.targetBkashNumber || 'বিকাশ নম্বর'})\n`;
+        } else if (t.type === 'expense') {
+          text += `${i + 1}. দৈনিক খরচ: ${taka(t.amount)} (${t.note || 'খরচ'})\n`;
+        } else {
+          text += `${i + 1}. ব্যাংকে জমা: ${taka(t.amount)} (${t.bankName || 'ব্যাংক'})\n`;
+        }
+      });
     }
 
-    text += `\nঅনুগ্রহ করে হিসাবটি মিলিয়ে নিবেন। ধন্যবাদ!`;
+    text += `\nঅনুগ্রহ করে হিসাবটি মিলিয়ে নিবেন। কোনো সমস্যা থাকলে জানাবেন। ধন্যবাদ!`;
     return text;
+  }
+
+  function handleShareWhatsApp() {
+    const txt = generateWhatsAppText();
+    const phone = activeP?.phone ? activeP.phone.replace(/[^0-9]/g, '') : '';
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(txt)}`
+      : `https://wa.me/?text=${encodeURIComponent(txt)}`;
+    window.open(url, '_blank');
   }
 
   function handleCopyMemoText() {
@@ -392,34 +454,27 @@ export default function BkashB2BPage() {
     toast.success('📋 মেমো টেক্সট ক্লিপবোর্ডে কপি হয়েছে!');
   }
 
-  function handleShareWhatsApp() {
-    const txt = generateWhatsAppText();
-    const phone = currentPartner?.phone ? currentPartner.phone.replace(/[^0-9]/g, '') : '';
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(txt)}`
-      : `https://wa.me/?text=${encodeURIComponent(txt)}`;
-    window.open(url, '_blank');
-  }
-
   return (
     <div>
-      {/* Top Bar */}
+      {/* Top Header */}
       <div className="topbar no-print">
         <div>
-          <h2>🤝 বিকাশ পার্টনার ও ব্যাংক হিসাব (bKash B2B)</h2>
+          <h2>🤝 বিকাশ পার্টনার দৈনিক হিসাব (B2B)</h2>
           <div className="sub">
-            পার্টনারকে বিকাশ প্রেরণ, ব্যাংকে পেমেন্ট গ্রহণ, বকেয়া পাওনা ও মেমো স্টেটমেন্ট তৈরি
+            আগের পাওনা, বিকাশ প্রেরণ, দৈনিক খরচ, ব্যাংক পেমেন্ট ও WhatsApp মেমো শেয়ার
           </div>
         </div>
         <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn green" onClick={() => openReceiveModal(selectedPartnerId)}>
-            📥 ব্যাংকে পেমেন্ট পেলাম
-          </button>
-          <button className="btn pink" style={{ background: '#be185d' }} onClick={() => openSendModal(selectedPartnerId)}>
-            📤 বিকাশ পাঠালাম
+          <button
+            className="btn green"
+            style={{ background: '#25D366', color: '#fff', fontWeight: 'bold' }}
+            onClick={handleShareWhatsApp}
+            title="পার্টনারকে হোয়াটসঅ্যাপে আজকের হিসাব মেমো পাঠান"
+          >
+            📲 WhatsApp-এ হিসাব পাঠান
           </button>
           <button className="btn blue" onClick={() => setActiveModal('memo')}>
-            🧾 হিসাব মেমো / স্টেটমেন্ট
+            🧾 মেমো স্টেটমেন্ট
           </button>
           <button className="btn gray" onClick={openNewPartnerModal}>
             ➕ নতুন পার্টনার
@@ -427,203 +482,274 @@ export default function BkashB2BPage() {
         </div>
       </div>
 
-      {/* Rules / Explanation Guide Card */}
-      <div
-        className="card mb no-print"
-        style={{
-          background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)',
-          border: '1px solid #bae6fd',
-          padding: '12px 18px',
-          marginBottom: 16,
-        }}
-      >
+      {/* Partner Switcher Tabs */}
+      <div className="card mb no-print" style={{ padding: '10px 14px', marginBottom: 16 }}>
         <div className="flex between align-center" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontSize: 13, color: '#0369a1', lineHeight: 1.6 }}>
-            💡 <b>হিসাব নিয়ম:</b> আপনি পার্টনারকে বিকাশ পাঠালে তার কাছে আপনার <b>পাওনা বাড়বে (+)</b> এবং আপনার সিম থেকে ব্যালেন্স কমবে। পার্টনার ব্যাংকে টাকা পাঠালে তার <b>পাওনা কমবে (−)</b>। যেকোনো সময় <b>"হিসাব মেমো"</b> থেকে পূর্ণাঙ্গ স্টেটমেন্ট প্রিন্ট বা হোয়াটসঅ্যাপে মেমো পাঠাতে পারবেন।
-          </div>
-          <Link href="/admin/bkash" className="btn sm pink" style={{ textDecoration: 'none' }}>
-            📱 মূল বিকাশ পেইজ →
-          </Link>
-        </div>
-      </div>
-
-      {/* Partner Selector Pills */}
-      <div className="card mb no-print" style={{ padding: '12px 16px', marginBottom: 16 }}>
-        <div className="flex between align-center mb8">
-          <span style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--muted)' }}>
-            👥 পার্টনার বাছাই করুন:
-          </span>
-          <button className="btn sm text blue" style={{ padding: 0 }} onClick={openNewPartnerModal}>
-            + নতুন পার্টনার যুক্ত করুন
-          </button>
-        </div>
-
-        <div className="flex" style={{ gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          <button
-            type="button"
-            className={`btn sm ${selectedPartnerId === '' ? 'blue' : 'gray'}`}
-            onClick={() => setSelectedPartnerId('')}
-            style={{ borderRadius: 20, whiteSpace: 'nowrap' }}
-          >
-            🌐 সকল পার্টনার ({partners.length})
-          </button>
-          {partners.map((p) => {
-            const isSel = selectedPartnerId === p._id;
-            const due = p.currentDue || 0;
-            return (
-              <button
-                key={p._id}
-                type="button"
-                className={`btn sm ${isSel ? 'pink' : 'gray'}`}
-                style={{
-                  borderRadius: 20,
-                  whiteSpace: 'nowrap',
-                  background: isSel ? '#be185d' : '#f1f5f9',
-                  color: isSel ? '#ffffff' : 'var(--text)',
-                  border: isSel ? 'none' : '1px solid var(--border)',
-                }}
-                onClick={() => setSelectedPartnerId(p._id)}
-              >
-                👤 {p.name} {p.phone ? `(${p.phone})` : ''} •{' '}
-                <b style={{ color: isSel ? '#fef08a' : due >= 0 ? '#16a34a' : '#dc2626' }}>
-                  {taka(due)}
-                </b>
-              </button>
-            );
-          })}
-          {partners.length === 0 && (
-            <span className="muted" style={{ fontSize: 13, padding: '4px 0' }}>
-              এখনো কোনো পার্টনার যুক্ত করা হয়নি। "নতুন পার্টনার" বাটনে ক্লিক করে যুক্ত করুন।
+          <div className="flex" style={{ gap: 6, overflowX: 'auto', flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--muted)', alignSelf: 'center', whiteSelf: 'nowrap' }}>
+              পার্টনার:
             </span>
+            {partners.map((p) => {
+              const isSel = activeP?._id === p._id;
+              return (
+                <button
+                  key={p._id}
+                  type="button"
+                  className={`btn sm ${isSel ? 'pink' : 'gray'}`}
+                  style={{
+                    borderRadius: 20,
+                    whiteSpace: 'nowrap',
+                    background: isSel ? '#be185d' : '#f1f5f9',
+                    color: isSel ? '#fff' : 'var(--text)',
+                    border: isSel ? 'none' : '1px solid var(--border)',
+                  }}
+                  onClick={() => setSelectedPartnerId(p._id)}
+                >
+                  👤 {p.name} • <b>{taka(p.currentDue || 0)}</b>
+                </button>
+              );
+            })}
+            {partners.length === 0 && (
+              <span className="muted" style={{ fontSize: 13 }}>
+                কোনো পার্টনার নেই। "নতুন পার্টনার" বাটনে ক্লিক করে যোগ করুন।
+              </span>
+            )}
+          </div>
+
+          {activeP && (
+            <div className="flex" style={{ gap: 6 }}>
+              <button className="btn sm text blue" onClick={() => openEditPartnerModal(activeP)}>
+                ✏️ পার্টনার এডিট
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Top 4 KPI Cards for Active Partner */}
-      <div className="grid cols-4 mb no-print" style={{ marginBottom: 16 }}>
-        <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
-          <div className="flex between align-center">
-            <span className="label">👤 নির্বাচিত পার্টনার</span>
-            {currentPartner && (
-              <button
-                className="btn sm text blue"
-                style={{ padding: 0, fontSize: 12 }}
-                onClick={() => openEditPartnerModal(currentPartner)}
-              >
-                ✏️ এডিট
-              </button>
-            )}
-          </div>
-          <div className="value blue" style={{ fontSize: 22 }}>
-            {activeStats.name}
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            {activeStats.phone}
-            {currentPartner?.bkashNumbers?.length > 0 && ` • বিকাশ: ${currentPartner.bkashNumbers[0]}`}
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid #be185d', background: '#fdf2f8' }}>
-          <div className="label">📤 মোট বিকাশ পাঠানো (Sent)</div>
-          <div className="value" style={{ color: '#be185d', fontSize: 26 }}>
-            {taka(activeStats.totalSent)}
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            পার্টনারের নম্বরে পাঠানো মোট টাকা
-          </div>
-        </div>
-
-        <div className="card" style={{ borderLeft: '4px solid #16a34a', background: '#f0fdf4' }}>
-          <div className="label">📥 মোট ব্যাংকে প্রাপ্ত (Received)</div>
-          <div className="value green" style={{ fontSize: 26 }}>
-            {taka(activeStats.totalReceived)}
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            পার্টনার থেকে ব্যাংকে পাওয়া মোট টাকা
-          </div>
-        </div>
-
+      {/* Main Daily Settlement Summary Card (বড় ও সহজ দৈনিক হিসাব) */}
+      {activeP ? (
         <div
-          className="card"
+          className="card mb no-print"
           style={{
-            borderLeft: `5px solid ${activeStats.currentDue >= 0 ? '#16a34a' : '#dc2626'}`,
-            background: activeStats.currentDue >= 0 ? '#ecfdf5' : '#fef2f2',
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+            border: '2px solid #cbd5e1',
+            borderRadius: 14,
+            padding: '18px 22px',
+            marginBottom: 16,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
           }}
         >
-          <div className="label" style={{ fontWeight: 'bold' }}>
-            {activeStats.currentDue >= 0 ? '💰 বর্তমান নিট পাওনা (Receivable)' : '⚠️ পার্টনারের অ্যাডভান্স (Payable)'}
+          {/* Top Title Row */}
+          <div className="flex between align-center mb8" style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: 10 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 18, color: '#0f172a' }}>
+                📅 {activeP.name} - আজকের সম্পূর্ণ হিসাব বিবরণী
+              </h3>
+              <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>
+                মোবাইল: {activeP.phone || '—'} • আজকের তারিখ: {new Date().toLocaleDateString('bn-BD')}
+              </div>
+            </div>
+
+            <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="btn sm"
+                style={{ background: '#be185d', color: '#fff' }}
+                onClick={openSendModal}
+              >
+                📤 বিকাশ পাঠালাম
+              </button>
+              <button
+                className="btn sm"
+                style={{ background: '#f59e0b', color: '#fff' }}
+                onClick={openExpenseModal}
+              >
+                💸 আজকের খরচ যোগ
+              </button>
+              <button
+                className="btn sm green"
+                onClick={openReceiveModal}
+              >
+                📥 পার্টনার টাকা দিলো
+              </button>
+            </div>
           </div>
+
+          {/* Simple 5-Step Daily Math Breakdown Cards */}
+          <div className="grid cols-4" style={{ gap: 12, marginTop: 12 }}>
+            {/* 1. Previous Due */}
+            <div style={{ background: '#eff6ff', padding: '12px 14px', borderRadius: 10, borderLeft: '4px solid #2563eb' }}>
+              <div className="flex between align-center">
+                <span style={{ fontSize: 12, color: '#1e40af', fontWeight: 'bold' }}>১. আগের পাওনা</span>
+                <button
+                  type="button"
+                  className="btn sm text blue"
+                  style={{ padding: 0, fontSize: 11 }}
+                  onClick={openOpeningDueModal}
+                  title="পূর্বের বকেয়া পরিবর্তন করুন"
+                >
+                  ✏️ এডিট
+                </button>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 'bold', color: '#1d4ed8', marginTop: 4 }}>
+                {taka(activeP.previousDue || 0)}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                আজকের দিনের আগের বকেয়া
+              </div>
+            </div>
+
+            {/* 2. Today Sent + Today Expense */}
+            <div style={{ background: '#fdf2f8', padding: '12px 14px', borderRadius: 10, borderLeft: '4px solid #be185d' }}>
+              <div className="flex between align-center">
+                <span style={{ fontSize: 12, color: '#9d174d', fontWeight: 'bold' }}>২. আজকের বিকাশ + খরচ</span>
+                <button
+                  type="button"
+                  className="btn sm text pink"
+                  style={{ padding: 0, fontSize: 11, color: '#be185d' }}
+                  onClick={openExpenseModal}
+                >
+                  + খরচ
+                </button>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 'bold', color: '#be185d', marginTop: 4 }}>
+                {taka((activeP.todaySent || 0) + (activeP.todayExpense || 0))}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                বিকাশ {taka(activeP.todaySent || 0)} + খরচ {taka(activeP.todayExpense || 0)}
+              </div>
+            </div>
+
+            {/* 3. Today Received */}
+            <div style={{ background: '#f0fdf4', padding: '12px 14px', borderRadius: 10, borderLeft: '4px solid #16a34a' }}>
+              <div className="flex between align-center">
+                <span style={{ fontSize: 12, color: '#166534', fontWeight: 'bold' }}>৩. আজকে ব্যাংকে দিয়েছে</span>
+                <button
+                  type="button"
+                  className="btn sm text green"
+                  style={{ padding: 0, fontSize: 11 }}
+                  onClick={openReceiveModal}
+                >
+                  + জমা
+                </button>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 'bold', color: '#15803d', marginTop: 4 }}>
+                {taka(activeP.todayReceived || 0)}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                পার্টনার আজকে যত টাকা শোধ করেছে
+              </div>
+            </div>
+
+            {/* 4. Net Closing Due */}
+            <div
+              style={{
+                background: (activeP.currentDue || 0) >= 0 ? '#ecfdf5' : '#fef2f2',
+                padding: '12px 14px',
+                borderRadius: 10,
+                borderLeft: `4px solid ${(activeP.currentDue || 0) >= 0 ? '#059669' : '#dc2626'}`,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 'bold', color: (activeP.currentDue || 0) >= 0 ? '#047857' : '#991b1b' }}>
+                ৪. বর্তমান অবশিষ্ট পাওনা
+              </div>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  color: (activeP.currentDue || 0) >= 0 ? '#047857' : '#dc2626',
+                  marginTop: 4,
+                }}
+              >
+                {taka(activeP.currentDue || 0)}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                মোট দাবি থেকে প্রাপ্তি বাদ দিয়ে
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Action Bar under Daily Card */}
           <div
-            className="value"
+            className="flex between align-center mt8"
             style={{
-              fontSize: 28,
-              color: activeStats.currentDue >= 0 ? '#15803d' : '#dc2626',
+              marginTop: 14,
+              paddingTop: 12,
+              borderTop: '1px dashed #e2e8f0',
+              flexWrap: 'wrap',
+              gap: 8,
             }}
           >
-            {taka(Math.abs(activeStats.currentDue))}
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            {activeStats.currentDue >= 0
-              ? 'পার্টনার এই টাকা আপনাকে ব্যাংকে পরিশোধ করবে'
-              : 'পার্টনার বেশি দিয়েছে (অ্যাডভান্স)'}
+            <div style={{ fontSize: 13, color: '#334155' }}>
+              💡 <b>হিসাব সমীকরণ:</b> আগের পাওনা ({taka(activeP.previousDue || 0)}) + আজকের বিকাশ ({taka(activeP.todaySent || 0)}) + আজকের খরচ ({taka(activeP.todayExpense || 0)}) − ব্যাংকে জমা ({taka(activeP.todayReceived || 0)}) = <b>অবশিষ্ট পাওনা {taka(activeP.currentDue || 0)}</b>
+            </div>
+
+            <div className="flex" style={{ gap: 8 }}>
+              <button
+                className="btn sm"
+                style={{ background: '#25D366', color: '#fff', fontWeight: 'bold' }}
+                onClick={handleShareWhatsApp}
+              >
+                📲 WhatsApp-এ হিসাব পাঠান
+              </button>
+              <button
+                className="btn sm blue"
+                onClick={handleCopyMemoText}
+              >
+                📋 টেক্সট কপি
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="card empty mb no-print">
+          কোনো পার্টনার নেই। উপরের "➕ নতুন পার্টনার" বাটনে ক্লিক করে পার্টনার যুক্ত করুন।
+        </div>
+      )}
 
-      {/* Main Ledger Section */}
+      {/* Transaction History Table for Active Partner */}
       <div className="card no-print">
-        {/* Ledger Header & Search/Filter Controls */}
-        <div className="flex between align-center mb8" style={{ flexWrap: 'wrap', gap: 10 }}>
+        <div className="flex between align-center mb8">
           <div>
-            <h3 style={{ margin: 0 }}>📋 বিকাশ ও ব্যাংক লেনদেন লেজার (Transaction Ledger)</h3>
+            <h3 style={{ margin: 0 }}>
+              📋 {activeP ? `${activeP.name}-এর লেনদেন ইতিহাস` : 'লেনদেন তালিকা'}
+            </h3>
             <span className="muted" style={{ fontSize: 12 }}>
-              মোট {ledgerTxns.length} টি লেনদেন প্রদর্শিত হচ্ছে
+              মোট {partnerTxns.length} টি লেনদেন রেকর্ড আছে
             </span>
           </div>
 
-          <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              placeholder="🔍 নম্বর, ব্যাংক, বা TrxID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: 190, padding: '7px 10px', fontSize: 13 }}
-            />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              style={{ width: 140, padding: '7px 10px', fontSize: 13 }}
-            >
-              <option value="all">সব ধরণ</option>
-              <option value="sent">📤 শুধু বিকাশ পাঠানো</option>
-              <option value="received">📥 শুধু ব্যাংক প্রাপ্তি</option>
-            </select>
-            <button className="btn sm blue" onClick={() => setActiveModal('memo')}>
-              🧾 মেমো ভিউ
+          <div className="flex" style={{ gap: 8 }}>
+            <button className="btn sm pink" style={{ background: '#be185d' }} onClick={openSendModal}>
+              + বিকাশ পাঠালাম
+            </button>
+            <button className="btn sm" style={{ background: '#f59e0b', color: '#fff' }} onClick={openExpenseModal}>
+              + খরচ যোগ
+            </button>
+            <button className="btn sm green" onClick={openReceiveModal}>
+              + পেমেন্ট পেলাম
             </button>
           </div>
         </div>
 
-        {/* Ledger Table */}
         <div className="table-wrap mt8">
           <table>
             <thead>
               <tr>
                 <th>তারিখ ও সময়</th>
-                <th>পার্টনার</th>
                 <th>লেনদেনের ধরণ</th>
-                <th>বিকাশ নম্বর / ব্যাংকের বিবরণ</th>
-                <th>রেফারেন্স / TrxID</th>
-                <th>প্রেরিত বিকাশ (৳)</th>
-                <th>ব্যাংক জমা (৳)</th>
+                <th>বিবরণ (নম্বর / ব্যাংক / খরচ)</th>
+                <th>TrxID / রেফারেন্স</th>
+                <th>টাকার পরিমাণ (৳)</th>
                 <th>অবশিষ্ট পাওনা</th>
                 <th>নোট</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {ledgerTxns.map((t) => {
+              {partnerTxns.map((t) => {
                 const isSent = t.type === 'sent';
+                const isExpense = t.type === 'expense';
+                const isRec = t.type === 'received';
                 return (
                   <tr key={t._id}>
                     <td>
@@ -632,33 +758,36 @@ export default function BkashB2BPage() {
                       </div>
                     </td>
                     <td>
-                      <b>{t.partnerName}</b>
-                      {t.partnerPhone && (
-                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t.partnerPhone}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge ${isSent ? 'pink' : 'green'}`} style={{ fontSize: 11 }}>
-                        {isSent ? '📤 বিকাশ প্রেরণ' : '📥 ব্যাংক প্রাপ্তি'}
+                      <span
+                        className={`badge ${isSent ? 'pink' : isExpense ? 'amber' : 'green'}`}
+                        style={{ fontSize: 11 }}
+                      >
+                        {isSent ? '📤 বিকাশ পাঠানো' : isExpense ? '💸 দৈনিক খরচ' : '📥 ব্যাংকে প্রাপ্তি'}
                       </span>
                     </td>
                     <td>
-                      {isSent ? (
+                      {isSent && (
                         <div>
                           <b style={{ color: '#be185d' }}>📱 {t.targetBkashNumber || 'নম্বর'}</b>
                           {t.ourAccountNumber && (
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              আমাদের সিম: {t.ourAccountNumber}
-                            </div>
+                            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>
+                              (সিম: {t.ourAccountNumber})
+                            </span>
                           )}
                         </div>
-                      ) : (
+                      )}
+                      {isExpense && (
+                        <div>
+                          <b style={{ color: '#b45309' }}>💸 {t.note || 'দৈনিক খরচ'}</b>
+                        </div>
+                      )}
+                      {isRec && (
                         <div>
                           <b style={{ color: '#15803d' }}>🏦 {t.bankName || 'ব্যাংক'}</b>
                           {t.bankAccount && (
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              A/C: {t.bankAccount}
-                            </div>
+                            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 6 }}>
+                              (A/C: {t.bankAccount})
+                            </span>
                           )}
                         </div>
                       )}
@@ -669,18 +798,14 @@ export default function BkashB2BPage() {
                       </span>
                     </td>
                     <td>
-                      {isSent ? (
-                        <b style={{ color: '#be185d', fontSize: 14 }}>{taka(t.amount)}</b>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>
-                      {!isSent ? (
-                        <b style={{ color: '#16a34a', fontSize: 14 }}>{taka(t.amount)}</b>
-                      ) : (
-                        '—'
-                      )}
+                      <b
+                        style={{
+                          fontSize: 14,
+                          color: isSent ? '#be185d' : isExpense ? '#d97706' : '#16a34a',
+                        }}
+                      >
+                        {isSent || isExpense ? '+' : '−'}{taka(t.amount)}
+                      </b>
                     </td>
                     <td>
                       <b
@@ -705,10 +830,10 @@ export default function BkashB2BPage() {
                   </tr>
                 );
               })}
-              {ledgerTxns.length === 0 && (
+              {partnerTxns.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="empty">
-                    কোনো লেনদেনের রেকর্ড পাওয়া যায়নি। উপরের "বিকাশ পাঠালাম" বা "ব্যাংকে পেমেন্ট পেলাম" বাটন ব্যবহার করে এন্ট্রি দিন।
+                  <td colSpan={8} className="empty">
+                    কোনো লেনদেনের রেকর্ড নেই। উপরের বাটনগুলো দিয়ে লেনদেন যুক্ত করুন।
                   </td>
                 </tr>
               )}
@@ -730,40 +855,34 @@ export default function BkashB2BPage() {
             zIndex: 9999,
           }}
         >
-          <div className="card" style={{ width: '520px', maxWidth: '94%', background: '#fff' }}>
+          <div className="card" style={{ width: '480px', maxWidth: '94%', background: '#fff' }}>
             <div className="flex between align-center mb8">
               <h3 style={{ margin: 0, color: '#be185d' }}>📤 পার্টনারকে বিকাশ পাঠালাম</h3>
               <button className="btn sm text gray" onClick={() => setActiveModal(null)}>✕</button>
             </div>
-            <div style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
-              পার্টনারের বিকাশ নম্বরে টাকা পাঠালে এন্ট্রি দিন। এটি সংশ্লিষ্ট পার্টনারের কাছে আপনার পাওনা হিসেবে যোগ হবে।
-            </div>
 
             <form className="form-grid" onSubmit={handleSendBkash}>
               <div>
-                <label style={{ fontWeight: 'bold' }}>কোন পার্টনারকে পাঠালেন? *</label>
+                <label style={{ fontWeight: 'bold' }}>পার্টনার</label>
                 <select
                   value={sendPartnerId}
                   onChange={(e) => {
                     setSendPartnerId(e.target.value);
                     const p = partners.find((x) => x._id === e.target.value);
-                    if (p && p.bkashNumbers && p.bkashNumbers.length > 0) {
-                      setSendTargetNumber(p.bkashNumbers[0]);
-                    }
+                    setSendTargetNumber(p?.bkashNumbers?.[0] || '');
                   }}
                   required
                 >
-                  <option value="">-- পার্টনার বাছাই করুন --</option>
                   {partners.map((p) => (
                     <option key={p._id} value={p._id}>
-                      {p.name} {p.phone ? `(${p.phone})` : ''} - বর্তমান পাওনা: {taka(p.currentDue || 0)}
+                      {p.name} {p.phone ? `(${p.phone})` : ''}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontWeight: 'bold', color: '#be185d' }}>পাঠানো টাকার পরিমাণ (৳) *</label>
+                <label style={{ fontWeight: 'bold', color: '#be185d' }}>পাঠানো টাকা (৳) *</label>
                 <input
                   type="number"
                   placeholder="যেমন: ৫০০০০"
@@ -776,7 +895,7 @@ export default function BkashB2BPage() {
               </div>
 
               <div>
-                <label style={{ fontWeight: 'bold' }}>পার্টনারের যে বিকাশ নম্বরে টাকা ঢুকলো *</label>
+                <label style={{ fontWeight: 'bold' }}>যে বিকাশ নম্বরে টাকা পাঠালেন *</label>
                 <input
                   placeholder="01XXXXXXXXX"
                   value={sendTargetNumber}
@@ -808,7 +927,7 @@ export default function BkashB2BPage() {
               </div>
 
               <div>
-                <label>আমাদের কোন সিম থেকে পাঠানো হলো? (ঐচ্ছিক)</label>
+                <label>আমাদের কোন সিম থেকে গেল? (ঐচ্ছিক)</label>
                 <select
                   value={sendOurAccountId}
                   onChange={(e) => setSendOurAccountId(e.target.value)}
@@ -816,20 +935,17 @@ export default function BkashB2BPage() {
                   <option value="">-- সিম ছাড়া শুধু রেকর্ড রাখুন --</option>
                   {accounts.map((acc) => (
                     <option key={acc._id} value={acc._id}>
-                      {acc.number} {acc.name ? `(${acc.name})` : ''} - বর্তমান ব্যালেন্স: {taka(acc.balance)}
+                      {acc.number} {acc.name ? `(${acc.name})` : ''} - ব্যালেন্স: {taka(acc.balance)}
                     </option>
                   ))}
                 </select>
-                <small className="muted" style={{ fontSize: 11 }}>
-                  সিম নির্বাচন করলে ওই সিমের ডিজিটাল ব্যালেন্স থেকে স্বয়ংক্রিয়ভাবে মাইনাস হবে।
-                </small>
               </div>
 
               <div className="grid cols-2" style={{ gap: 10 }}>
                 <div>
-                  <label>TrxID / লেনদেন আইডি</label>
+                  <label>TrxID (ঐচ্ছিক)</label>
                   <input
-                    placeholder="যেমন: BL9X..."
+                    placeholder="TrxID"
                     value={sendTrxId}
                     onChange={(e) => setSendTrxId(e.target.value)}
                   />
@@ -845,22 +961,22 @@ export default function BkashB2BPage() {
               </div>
 
               <div>
-                <label>বিবরণ / নোট</label>
+                <label>নোট / মন্তব্য</label>
                 <input
-                  placeholder="যেমন: দুপুরের লট, বান্ডেল দিয়ে সেন্ড মানি"
+                  placeholder="যেমন: দুপুরের লট"
                   value={sendNote}
                   onChange={(e) => setSendNote(e.target.value)}
                 />
               </div>
 
-              <div className="flex gap mt" style={{ marginTop: 8 }}>
+              <div className="flex gap mt">
                 <button
                   type="submit"
                   className="btn pink"
                   style={{ flex: 1, background: '#be185d' }}
                   disabled={loading}
                 >
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : '📤 বিকাশ প্রেরণ নিশ্চিত করুন (+ পাওনা যোগ)'}
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '📤 বিকাশ প্রেরণ নিশ্চিত করুন (+ পাওনা বৃদ্ধি)'}
                 </button>
                 <button type="button" className="btn gray" onClick={() => setActiveModal(null)}>
                   বাতিল
@@ -884,34 +1000,30 @@ export default function BkashB2BPage() {
             zIndex: 9999,
           }}
         >
-          <div className="card" style={{ width: '520px', maxWidth: '94%', background: '#fff' }}>
+          <div className="card" style={{ width: '480px', maxWidth: '94%', background: '#fff' }}>
             <div className="flex between align-center mb8">
-              <h3 style={{ margin: 0, color: '#15803d' }}>📥 পার্টনার থেকে ব্যাংকে পেমেন্ট পেলাম</h3>
+              <h3 style={{ margin: 0, color: '#15803d' }}>📥 পার্টনার থেকে পেমেন্ট পেলাম</h3>
               <button className="btn sm text gray" onClick={() => setActiveModal(null)}>✕</button>
-            </div>
-            <div style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
-              পার্টনার আপনার ব্যাংক অ্যাকাউন্টে টাকা পাঠালে বা ক্যাশ পরিশোধ করলে এন্ট্রি দিন। এটি তার কাছে থাকা পাওনা কমিয়ে দিবে।
             </div>
 
             <form className="form-grid" onSubmit={handleReceiveBank}>
               <div>
-                <label style={{ fontWeight: 'bold' }}>কোন পার্টনার টাকা দিলো? *</label>
+                <label style={{ fontWeight: 'bold' }}>পার্টনার</label>
                 <select
                   value={receivePartnerId}
                   onChange={(e) => setReceivePartnerId(e.target.value)}
                   required
                 >
-                  <option value="">-- পার্টনার বাছাই করুন --</option>
                   {partners.map((p) => (
                     <option key={p._id} value={p._id}>
-                      {p.name} {p.phone ? `(${p.phone})` : ''} - বর্তমান পাওনা: {taka(p.currentDue || 0)}
+                      {p.name} {p.phone ? `(${p.phone})` : ''}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontWeight: 'bold', color: '#15803d' }}>প্রাপ্ত টাকার পরিমাণ (৳) *</label>
+                <label style={{ fontWeight: 'bold', color: '#15803d' }}>প্রাপ্ত টাকা (৳) *</label>
                 <input
                   type="number"
                   placeholder="যেমন: ৪০০০০"
@@ -925,18 +1037,18 @@ export default function BkashB2BPage() {
 
               <div className="grid cols-2" style={{ gap: 10 }}>
                 <div>
-                  <label style={{ fontWeight: 'bold' }}>কোন ব্যাংকে টাকা ঢুকলো? *</label>
+                  <label style={{ fontWeight: 'bold' }}>কোন ব্যাংকে ঢুকলো? *</label>
                   <input
-                    placeholder="যেমন: Islami Bank, DBBL, Brac Bank"
+                    placeholder="Islami Bank, DBBL, Brac Bank"
                     value={receiveBankName}
                     onChange={(e) => setReceiveBankName(e.target.value)}
                     required
                   />
                 </div>
                 <div>
-                  <label>ব্যাংক অ্যাকাউন্ট নং / চেক নং</label>
+                  <label>A/C নং বা স্লিপ নং</label>
                   <input
-                    placeholder="যেমন: 2050XXXXXXXX"
+                    placeholder="অ্যাকাউন্ট নং"
                     value={receiveBankAccount}
                     onChange={(e) => setReceiveBankAccount(e.target.value)}
                   />
@@ -950,48 +1062,179 @@ export default function BkashB2BPage() {
                     value={receivePaymentMethod}
                     onChange={(e) => setReceivePaymentMethod(e.target.value)}
                   >
-                    <option value="bank">ব্যাংক ট্রান্সফার / এনপিএসবি</option>
-                    <option value="cash">নগদ ক্যাশ গ্রহণ</option>
-                    <option value="cheque">ব্যাংক চেক</option>
-                    <option value="other">অন্যান্য</option>
+                    <option value="bank">ব্যাংক ট্রান্সফার</option>
+                    <option value="cash">নগদ ক্যাশ</option>
+                    <option value="cheque">চেক</option>
                   </select>
                 </div>
                 <div>
-                  <label>TrxID / ডিপোজিট স্লিপ নং</label>
+                  <label>তারিখ ও সময়</label>
                   <input
-                    placeholder="স্লিপ / ট্রানজেকশন আইডি"
-                    value={receiveTrxId}
-                    onChange={(e) => setReceiveTrxId(e.target.value)}
+                    type="datetime-local"
+                    value={receiveDate}
+                    onChange={(e) => setReceiveDate(e.target.value)}
                   />
                 </div>
               </div>
 
               <div>
-                <label>তারিখ ও সময়</label>
+                <label>নোট / মন্তব্য</label>
                 <input
-                  type="datetime-local"
-                  value={receiveDate}
-                  onChange={(e) => setReceiveDate(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label>বিবরণ / নোট</label>
-                <input
-                  placeholder="যেমন: দুপুরের লটের পেমেন্ট পরিশোধ"
+                  placeholder="যেমন: ব্যাংকে জমা পাওয়া গেছে"
                   value={receiveNote}
                   onChange={(e) => setReceiveNote(e.target.value)}
                 />
               </div>
 
-              <div className="flex gap mt" style={{ marginTop: 8 }}>
+              <div className="flex gap mt">
                 <button
                   type="submit"
                   className="btn green"
                   style={{ flex: 1 }}
                   disabled={loading}
                 >
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : '📥 ব্যাংক পেমেন্ট নিশ্চিত করুন (− পাওনা হ্রাস)'}
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '📥 পেমেন্ট নিশ্চিত করুন (− পাওনা হ্রাস)'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setActiveModal(null)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: ADD DAILY EXPENSE ================= */}
+      {activeModal === 'expense' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '460px', maxWidth: '94%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0, color: '#b45309' }}>💸 দৈনিক খরচ যোগ করুন</h3>
+              <button className="btn sm text gray" onClick={() => setActiveModal(null)}>✕</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
+              পার্টনার থেকে দৈনিক যে খরচ বা কমিশন বাবদ টাকা পান তা এখানে যোগ করুন। এটি পার্টনারের পাওনার সাথে যোগ হবে।
+            </div>
+
+            <form className="form-grid" onSubmit={handleAddExpense}>
+              <div>
+                <label style={{ fontWeight: 'bold' }}>পার্টনার</label>
+                <select
+                  value={expensePartnerId}
+                  onChange={(e) => setExpensePartnerId(e.target.value)}
+                  required
+                >
+                  {partners.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} {p.phone ? `(${p.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontWeight: 'bold', color: '#b45309' }}>আজকের খরচের টাকা (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ১০০ বা ৫০"
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                  style={{ fontSize: 18, fontWeight: 'bold', borderColor: '#fcd34d', background: '#fffbeb' }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label>খরচের বিবরণ</label>
+                <input
+                  placeholder="যেমন: আজকের দৈনিক খরচ, সেন্ড মানি খরচ"
+                  value={expenseNote}
+                  onChange={(e) => setExpenseNote(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label>তারিখ ও সময়</label>
+                <input
+                  type="datetime-local"
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap mt">
+                <button
+                  type="submit"
+                  className="btn"
+                  style={{ flex: 1, background: '#f59e0b', color: '#fff' }}
+                  disabled={loading}
+                >
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '➕ খরচ যোগ করুন (+ পাওনা বৃদ্ধি)'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setActiveModal(null)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: EDIT OPENING DUE ================= */}
+      {activeModal === 'opening' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '440px', maxWidth: '94%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0, color: '#1e40af' }}>✏️ আগের বকেয়া পাওনা সেট করুন</h3>
+              <button className="btn sm text gray" onClick={() => setActiveModal(null)}>✕</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: '#64748b', marginBottom: 12 }}>
+              পার্টনারের কাছে আগে থেকেই যে বকেয়া টাকা পাওনা আছে তা এখানে লিখে দিন। এটি পার্টনারের প্রারম্ভিক হিসাব হিসেবে জমা থাকবে।
+            </div>
+
+            <form className="form-grid" onSubmit={handleSaveOpeningDue}>
+              <div>
+                <label style={{ fontWeight: 'bold', color: '#1d4ed8' }}>পূর্বের পাওনা টাকা (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ১৫০০০"
+                  value={openingAmount}
+                  onChange={(e) => setOpeningAmount(e.target.value)}
+                  style={{ fontSize: 18, fontWeight: 'bold', borderColor: '#93c5fd', background: '#eff6ff' }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap mt">
+                <button
+                  type="submit"
+                  className="btn blue"
+                  style={{ flex: 1 }}
+                  disabled={loading}
+                >
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
                 <button type="button" className="btn gray" onClick={() => setActiveModal(null)}>
                   বাতিল
@@ -1018,7 +1261,7 @@ export default function BkashB2BPage() {
           <div className="card" style={{ width: '480px', maxWidth: '94%', background: '#fff' }}>
             <div className="flex between align-center mb8">
               <h3 style={{ margin: 0 }}>
-                {editPartnerId ? '✏️ পার্টনারের তথ্য পরিবর্তন করুন' : '➕ নতুন বিকাশ পার্টনার যুক্ত করুন'}
+                {editPartnerId ? '✏️ পার্টনারের তথ্য পরিবর্তন' : '➕ নতুন পার্টনার যুক্ত করুন'}
               </h3>
               <button className="btn sm text gray" onClick={() => setActiveModal(null)}>✕</button>
             </div>
@@ -1027,7 +1270,7 @@ export default function BkashB2BPage() {
               <div>
                 <label style={{ fontWeight: 'bold' }}>পার্টনারের নাম *</label>
                 <input
-                  placeholder="যেমন: করিম ভাই, ডিলার রাজিব, রনি এন্টারপ্রাইজ"
+                  placeholder="যেমন: করিম ভাই"
                   value={partnerName}
                   onChange={(e) => setPartnerName(e.target.value)}
                   required
@@ -1045,36 +1288,35 @@ export default function BkashB2BPage() {
               </div>
 
               <div>
-                <label>পার্টনারের বিকাশ নম্বরসমূহ (কমা দিয়ে একাধিক নম্বর দেওয়া যাবে)</label>
+                <label style={{ fontWeight: 'bold', color: '#2563eb' }}>আগের বকেয়া পাওনা (৳)</label>
                 <input
-                  placeholder="যেমন: 01711XXXXXX, 01822XXXXXX"
-                  value={partnerBkashNumbers}
-                  onChange={(e) => setPartnerBkashNumbers(e.target.value)}
+                  type="number"
+                  placeholder="আগে থেকে পাওনা থাকলে লিখুন (যেমন: ১০০০০)"
+                  value={partnerOpeningDue}
+                  onChange={(e) => setPartnerOpeningDue(e.target.value)}
+                  style={{ background: '#eff6ff' }}
                 />
-                <small className="muted" style={{ fontSize: 11 }}>
-                  বিকাশ পাঠানোর সময় এই নম্বরগুলো ড্রপডাউনে দ্রুত বাছাই করতে পারবেন।
-                </small>
               </div>
 
               <div>
-                <label>পার্টনারের ব্যাংক তথ্য (ঐচ্ছিক)</label>
+                <label>বিকাশ নম্বরসমূহ (কমা দিয়ে একাধিক নম্বর)</label>
                 <input
-                  placeholder="যেমন: Islami Bank, A/C: 2050XXXX, Banani"
+                  placeholder="01711XXXXXX, 01822XXXXXX"
+                  value={partnerBkashNumbers}
+                  onChange={(e) => setPartnerBkashNumbers(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label>ব্যাংক তথ্য (ঐচ্ছিক)</label>
+                <input
+                  placeholder="যেমন: Islami Bank, A/C: 2050XXXX"
                   value={partnerBankDetails}
                   onChange={(e) => setPartnerBankDetails(e.target.value)}
                 />
               </div>
 
-              <div>
-                <label>অতিরিক্ত নোট / ঠিকানা</label>
-                <input
-                  placeholder="যেমন: নিয়মিত B2B কাস্টমার"
-                  value={partnerNotes}
-                  onChange={(e) => setPartnerNotes(e.target.value)}
-                />
-              </div>
-
-              <div className="flex gap mt" style={{ marginTop: 8 }}>
+              <div className="flex gap mt">
                 <button type="submit" className="btn green" style={{ flex: 1 }} disabled={loading}>
                   {loading ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
@@ -1084,7 +1326,7 @@ export default function BkashB2BPage() {
                     className="btn red sm"
                     onClick={() => handleDeletePartner(editPartnerId)}
                   >
-                    পার্টনার মুছুন
+                    মুছুন
                   </button>
                 )}
                 <button type="button" className="btn gray" onClick={() => setActiveModal(null)}>
@@ -1096,7 +1338,7 @@ export default function BkashB2BPage() {
         </div>
       )}
 
-      {/* ================= MODAL: PRINTABLE MEMO & STATEMENT ================= */}
+      {/* ================= MODAL: MEMO VIEW & PRINT ================= */}
       {activeModal === 'memo' && (
         <div
           className="modal-overlay"
@@ -1115,7 +1357,7 @@ export default function BkashB2BPage() {
           <div
             className="printable-area"
             style={{
-              width: '840px',
+              width: '800px',
               maxWidth: '100%',
               background: '#fff',
               borderRadius: 12,
@@ -1125,23 +1367,16 @@ export default function BkashB2BPage() {
               overflowY: 'auto',
             }}
           >
-            {/* Memo Modal Action Controls (Hidden when printed) */}
+            {/* Top Toolbar in Memo Modal */}
             <div className="flex between align-center mb8 no-print" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
               <div className="flex" style={{ gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 'bold' }}>মেমো সময়কাল:</span>
                 <button
                   type="button"
-                  className={`btn sm ${memoPeriod === 'all' ? 'blue' : 'gray'}`}
-                  onClick={() => setMemoPeriod('all')}
-                >
-                  সর্বকালীন
-                </button>
-                <button
-                  type="button"
                   className={`btn sm ${memoPeriod === 'today' ? 'blue' : 'gray'}`}
                   onClick={() => setMemoPeriod('today')}
                 >
-                  আজকের
+                  আজকের হিসাব
                 </button>
                 <button
                   type="button"
@@ -1157,25 +1392,36 @@ export default function BkashB2BPage() {
                 >
                   চলতি মাস
                 </button>
+                <button
+                  type="button"
+                  className={`btn sm ${memoPeriod === 'all' ? 'blue' : 'gray'}`}
+                  onClick={() => setMemoPeriod('all')}
+                >
+                  সর্বকালীন
+                </button>
               </div>
 
               <div className="flex" style={{ gap: 8 }}>
-                <button className="btn sm green" onClick={handleShareWhatsApp}>
-                  📲 WhatsApp-এ পাঠান
+                <button
+                  className="btn sm"
+                  style={{ background: '#25D366', color: '#fff', fontWeight: 'bold' }}
+                  onClick={handleShareWhatsApp}
+                >
+                  📲 WhatsApp
                 </button>
                 <button className="btn sm blue" onClick={handleCopyMemoText}>
-                  📋 টেক্সট কপি
+                  📋 কপি
                 </button>
                 <button className="btn sm pink" onClick={() => window.print()}>
-                  🖨️ প্রিন্ট / PDF
+                  🖨️ প্রিন্ট
                 </button>
                 <button className="btn sm text gray" onClick={() => setActiveModal(null)}>
-                  ✕ বন্ধ করুন
+                  ✕
                 </button>
               </div>
             </div>
 
-            {/* --- ACTUAL PRINTABLE MEMO CONTENT --- */}
+            {/* --- PRINTABLE MEMO PAPER --- */}
             <div
               id="printable-memo"
               style={{
@@ -1186,160 +1432,142 @@ export default function BkashB2BPage() {
                 borderRadius: 8,
               }}
             >
-              {/* Memo Header */}
-              <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: '#0f172a' }}>
+              {/* Header */}
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 10, marginBottom: 14 }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 'bold' }}>
                   🏪 {user?.shopName || 'আমার দোকান'}
                 </h2>
                 <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>
-                  বিকাশ B2B ও ব্যাংক লেনদেন মেমো ও হিসাব বিবরণী
+                  বিকাশ পার্টনার দৈনিক হিসাব মেমো ও বিবরণী
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
                   তারিখ: {new Date().toLocaleDateString('bn-BD')} {new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })} • মেমো নং: #B2B-{Date.now().toString().slice(-6)}
                 </div>
               </div>
 
-              {/* Partner Info Box */}
+              {/* Partner Box */}
               <div
                 style={{
                   background: '#f8fafc',
                   border: '1px solid #cbd5e1',
                   borderRadius: 8,
-                  padding: '12px 16px',
-                  marginBottom: 16,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 8,
+                  padding: '10px 14px',
+                  marginBottom: 14,
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   fontSize: 13,
                 }}
               >
                 <div>
-                  <span style={{ color: '#64748b' }}>গ্রাহক / পার্টনার: </span>
-                  <b style={{ fontSize: 15 }}>{currentPartner ? currentPartner.name : 'সকল পার্টনার'}</b>
+                  <span style={{ color: '#64748b' }}>পার্টনার: </span>
+                  <b style={{ fontSize: 15 }}>{activeP?.name || '—'}</b>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>মোবাইল / WhatsApp: </span>
-                  <b>{currentPartner?.phone || '—'}</b>
+                  <span style={{ color: '#64748b' }}>মোবাইল: </span>
+                  <b>{activeP?.phone || '—'}</b>
                 </div>
                 <div>
-                  <span style={{ color: '#64748b' }}>বিকাশ নম্বরসমূহ: </span>
-                  <span>{currentPartner?.bkashNumbers?.join(', ') || '—'}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>ব্যাংক বিবরণ: </span>
-                  <span>{currentPartner?.bankDetails || '—'}</span>
+                  <span style={{ color: '#64748b' }}>সময়কাল: </span>
+                  <b>{memoPeriod === 'today' ? 'আজকের দিন' : memoPeriod === '7days' ? 'গত ৭ দিন' : memoPeriod === 'month' ? 'চলতি মাস' : 'সর্বকালীন'}</b>
                 </div>
               </div>
 
-              {/* Memo Table */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
-                <thead>
-                  <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>ক্র.</th>
-                    <th style={{ padding: '8px 10px' }}>তারিখ ও সময়</th>
-                    <th style={{ padding: '8px 10px' }}>বিবরণ (বিকাশ নম্বর / ব্যাংক নাম)</th>
-                    <th style={{ padding: '8px 10px' }}>TrxID / রেফারেন্স</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>প্রেরিত বিকাশ (৳)</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>ব্যাংক জমা (৳)</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right' }}>অবশিষ্ট পাওনা</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {memoTxns.map((t, idx) => {
-                    const isSent = t.type === 'sent';
-                    return (
-                      <tr key={t._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '7px 10px', textAlign: 'center' }}>{idx + 1}</td>
-                        <td style={{ padding: '7px 10px', fontSize: 12 }}>
-                          {new Date(t.date).toLocaleDateString('bn-BD')} {new Date(t.date).toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td style={{ padding: '7px 10px' }}>
-                          {isSent ? (
-                            <span>📤 বিকাশ পাঠানো: <b>{t.targetBkashNumber || 'নম্বর'}</b></span>
-                          ) : (
-                            <span>📥 ব্যাংক জমা: <b>{t.bankName || 'ব্যাংক'}</b> {t.bankAccount ? `(${t.bankAccount})` : ''}</span>
-                          )}
-                          {t.note && <div style={{ fontSize: 11, color: '#64748b' }}>নোট: {t.note}</div>}
-                        </td>
-                        <td style={{ padding: '7px 10px', fontSize: 11, color: '#64748b' }}>
-                          {t.trxId || '—'}
-                        </td>
-                        <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: isSent ? 'bold' : 'normal', color: isSent ? '#be185d' : 'inherit' }}>
-                          {isSent ? taka(t.amount) : '—'}
-                        </td>
-                        <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: !isSent ? 'bold' : 'normal', color: !isSent ? '#16a34a' : 'inherit' }}>
-                          {!isSent ? taka(t.amount) : '—'}
-                        </td>
-                        <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold' }}>
-                          {taka(t.balanceAfter || 0)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {memoTxns.length === 0 && (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                        নির্বাচিত সময়কালে কোনো লেনদেনের রেকর্ড নেই
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              {/* Memo Summary Footer Box */}
+              {/* Calculations Box */}
               <div
                 style={{
                   background: '#f8fafc',
                   border: '2px solid #0f172a',
                   borderRadius: 8,
-                  padding: '14px 18px',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 12,
-                  textAlign: 'center',
-                  marginBottom: 20,
+                  padding: '12px 16px',
+                  marginBottom: 14,
+                  fontSize: 13.5,
+                  lineHeight: 2,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>সর্বমোট প্রেরিত বিকাশ</div>
-                  <div style={{ fontSize: 18, fontWeight: 'bold', color: '#be185d', marginTop: 4 }}>
-                    {taka(memoTotalSent)}
-                  </div>
+                <div className="flex between" style={{ borderBottom: '1px dashed #cbd5e1' }}>
+                  <span>🔹 আগের বকেয়া পাওনা:</span>
+                  <b style={{ color: '#2563eb' }}>{taka(memoPrevDue)}</b>
                 </div>
-                <div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>সর্বমোট ব্যাংকে প্রাপ্ত</div>
-                  <div style={{ fontSize: 18, fontWeight: 'bold', color: '#16a34a', marginTop: 4 }}>
-                    {taka(memoTotalReceived)}
-                  </div>
+                <div className="flex between" style={{ borderBottom: '1px dashed #cbd5e1' }}>
+                  <span>➕ আজকের বিকাশ পাঠানো:</span>
+                  <b style={{ color: '#be185d' }}>+{taka(memoSent)}</b>
                 </div>
-                <div style={{ borderLeft: '2px dashed #cbd5e1' }}>
-                  <div style={{ fontSize: 12, fontWeight: 'bold', color: '#0f172a' }}>
-                    {memoNetDue >= 0 ? '💰 মোট অবশিষ্ট পাওনা' : '⚠️ পার্টনারের পাওনা / দেনা'}
+                {memoExpense > 0 && (
+                  <div className="flex between" style={{ borderBottom: '1px dashed #cbd5e1' }}>
+                    <span>➕ আজকের খরচ বাবদ পাওনা:</span>
+                    <b style={{ color: '#d97706' }}>+{taka(memoExpense)}</b>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 'bold',
-                      color: memoNetDue >= 0 ? '#15803d' : '#dc2626',
-                      marginTop: 2,
-                    }}
-                  >
-                    {taka(Math.abs(memoNetDue))}
-                  </div>
+                )}
+                <div className="flex between" style={{ borderBottom: '1px solid #0f172a', fontWeight: 'bold' }}>
+                  <span>📊 মোট পাওনা দাবি:</span>
+                  <span>{taka(memoPrevDue + memoSent + memoExpense)}</span>
+                </div>
+                <div className="flex between" style={{ borderBottom: '2px solid #0f172a', color: '#16a34a', fontWeight: 'bold' }}>
+                  <span>➖ আজকে ব্যাংকে পেমেন্ট পেয়েছেন:</span>
+                  <span>−{taka(memoReceived)}</span>
+                </div>
+                <div
+                  className="flex between mt8"
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    paddingTop: 6,
+                    color: memoNetDue >= 0 ? '#15803d' : '#dc2626',
+                  }}
+                >
+                  <span>💰 {memoNetDue >= 0 ? 'আজকের অবশিষ্ট নিট পাওনা:' : 'পার্টনারের অতিরিক্ত জমা:'}</span>
+                  <span style={{ fontSize: 20 }}>{taka(Math.abs(memoNetDue))}</span>
                 </div>
               </div>
 
-              {/* Signature and Notes */}
-              <div className="flex between" style={{ marginTop: 36, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  * অনুগ্রহ করে উপরিউক্ত হিসাবটি আপনার রেকর্ডের সাথে মিলিয়ে নিবেন।
-                  <br />যেকোনো প্রয়োজনে যোগাযোগ করবেন। ধন্যবাদ!
+              {/* Table of Items */}
+              {memoTxns.length > 0 && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, marginBottom: 16 }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                      <th style={{ padding: '6px 8px', textAlign: 'center' }}>ক্র.</th>
+                      <th style={{ padding: '6px 8px' }}>লেনদেনের ধরণ</th>
+                      <th style={{ padding: '6px 8px' }}>বিবরণ</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>টাকা (৳)</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>অবশিষ্ট ব্যালেন্স</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {memoTxns.map((t, idx) => {
+                      const isSent = t.type === 'sent';
+                      const isExpense = t.type === 'expense';
+                      return (
+                        <tr key={t._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '6px 8px', textAlign: 'center' }}>{idx + 1}</td>
+                          <td style={{ padding: '6px 8px' }}>
+                            {isSent ? 'বিকাশ পাঠানো' : isExpense ? 'দৈনিক খরচ' : 'ব্যাংক জমা'}
+                          </td>
+                          <td style={{ padding: '6px 8px' }}>
+                            {isSent ? (t.targetBkashNumber || 'বিকাশ') : isExpense ? (t.note || 'খরচ') : (t.bankName || 'ব্যাংক')}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: isSent ? '#be185d' : isExpense ? '#d97706' : '#16a34a' }}>
+                            {isSent || isExpense ? '+' : '−'}{taka(t.amount)}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold' }}>
+                            {taka(t.balanceAfter || 0)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+
+              {/* Signature */}
+              <div className="flex between" style={{ marginTop: 28, paddingTop: 12, borderTop: '1px dashed #cbd5e1' }}>
+                <div style={{ fontSize: 11, color: '#64748b' }}>
+                  * অনুগ্রহ করে হিসাবটি মিলিয়ে নিবেন। ধন্যবাদ!
                 </div>
-                <div style={{ textAlign: 'center', minWidth: 160 }}>
-                  <div style={{ borderTop: '1px solid #0f172a', paddingTop: 6, fontSize: 13, fontWeight: 'bold' }}>
+                <div style={{ textAlign: 'center', minWidth: 140 }}>
+                  <div style={{ borderTop: '1px solid #0f172a', paddingTop: 4, fontSize: 12, fontWeight: 'bold' }}>
                     প্রোপাইটর স্বাক্ষর
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{user?.shopName || 'আমার দোকান'}</div>
+                  <div style={{ fontSize: 10.5, color: '#64748b' }}>{user?.shopName || 'আমার দোকান'}</div>
                 </div>
               </div>
             </div>

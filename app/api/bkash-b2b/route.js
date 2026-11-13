@@ -16,20 +16,40 @@ export async function GET(req) {
     BkashAccount.find().sort({ createdAt: 1 }).lean(),
   ]);
 
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
   // Compute stats per partner
   const enrichedPartners = partners.map((p) => {
     const pId = p._id.toString();
     const pTxns = allTxns.filter((t) => t.partnerId === pId);
+    const openingDue = Number(p.openingDue) || 0;
+
     const totalSent = pTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+    const totalExpense = pTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0);
     const totalReceived = pTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
-    const currentDue = totalSent - totalReceived;
+    const currentDue = openingDue + totalSent + totalExpense - totalReceived;
+
+    // Today's stats
+    const todayTxns = pTxns.filter((t) => new Date(t.date) >= startOfToday);
+    const todaySent = todayTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+    const todayExpense = todayTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0);
+    const todayReceived = todayTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
+    const previousDue = currentDue - (todaySent + todayExpense - todayReceived);
+
     const lastTx = pTxns.length > 0 ? pTxns[0].date : p.createdAt || p.date;
 
     return {
       ...p,
+      openingDue,
       totalSent,
+      totalExpense,
       totalReceived,
       currentDue,
+      todaySent,
+      todayExpense,
+      todayReceived,
+      previousDue,
       txCount: pTxns.length,
       lastTx,
     };
@@ -41,16 +61,20 @@ export async function GET(req) {
     : allTxns;
 
   // Global summary
+  const totalOpeningAll = partners.reduce((a, p) => a + (Number(p.openingDue) || 0), 0);
   const totalSentAll = allTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+  const totalExpenseAll = allTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0);
   const totalReceivedAll = allTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
-  const totalDueAll = totalSentAll - totalReceivedAll;
+  const totalDueAll = totalOpeningAll + totalSentAll + totalExpenseAll - totalReceivedAll;
 
   return NextResponse.json({
     partners: enrichedPartners,
     transactions: filteredTxns,
     accounts,
     summary: {
+      totalOpening: totalOpeningAll,
       totalSent: totalSentAll,
+      totalExpense: totalExpenseAll,
       totalReceived: totalReceivedAll,
       totalDue: totalDueAll,
       partnerCount: partners.length,
@@ -68,7 +92,7 @@ export async function POST(req) {
 
   // 1. Create Partner
   if (action === 'create_partner') {
-    const { name, phone = '', bkashNumbers = [], bankDetails = '', notes = '' } = body;
+    const { name, phone = '', openingDue = 0, bkashNumbers = [], bankDetails = '', notes = '' } = body;
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'পার্টনারের নাম আবশ্যক' }, { status: 400 });
     }
@@ -83,6 +107,7 @@ export async function POST(req) {
     const partner = await BkashPartner.create({
       name: name.trim(),
       phone: phone.trim(),
+      openingDue: Number(openingDue) || 0,
       bkashNumbers: cleanNumbers,
       bankDetails: bankDetails.trim(),
       notes: notes.trim(),
@@ -94,7 +119,7 @@ export async function POST(req) {
 
   // 2. Update Partner
   if (action === 'update_partner') {
-    const { id, name, phone, bkashNumbers, bankDetails, notes } = body;
+    const { id, name, phone, openingDue, bkashNumbers, bankDetails, notes } = body;
     if (!id) return NextResponse.json({ error: 'পার্টনার আইডি প্রয়োজন' }, { status: 400 });
 
     let cleanNumbers = [];
@@ -109,6 +134,7 @@ export async function POST(req) {
       {
         name: name ? name.trim() : undefined,
         phone: phone ? phone.trim() : undefined,
+        openingDue: openingDue !== undefined ? Number(openingDue) || 0 : undefined,
         bkashNumbers: cleanNumbers.length > 0 ? cleanNumbers : undefined,
         bankDetails: bankDetails !== undefined ? bankDetails.trim() : undefined,
         notes: notes !== undefined ? notes.trim() : undefined,
@@ -119,11 +145,11 @@ export async function POST(req) {
     return NextResponse.json({ partner: updated });
   }
 
-  // 3. Add B2B Transaction
+  // 3. Add B2B Transaction (sent | received | expense)
   if (action === 'add_transaction') {
     const {
       partnerId,
-      type, // 'sent' (আমি বিকাশ পাঠালাম) | 'received' (পার্টনার ব্যাংকে পাঠালো)
+      type, // 'sent' (আমি বিকাশ পাঠালাম) | 'received' (পার্টনার ব্যাংকে পাঠালো) | 'expense' (দৈনিক খরচ)
       amount,
       targetBkashNumber = '',
       ourAccountId = '',
@@ -139,7 +165,7 @@ export async function POST(req) {
     if (!partnerId) {
       return NextResponse.json({ error: 'পার্টনার নির্বাচন করুন' }, { status: 400 });
     }
-    if (!type || !['sent', 'received'].includes(type)) {
+    if (!type || !['sent', 'received', 'expense'].includes(type)) {
       return NextResponse.json({ error: 'লেনদেনের ধরণ সঠিক নয়' }, { status: 400 });
     }
     if (!amt || amt <= 0) {
@@ -197,9 +223,17 @@ export async function POST(req) {
     // Calculate new running balance for this partner
     const prevTxns = await BkashB2BTransaction.find({ partnerId }).lean();
     const prevSent = prevTxns.filter((t) => t.type === 'sent').reduce((a, t) => a + (t.amount || 0), 0);
+    const prevExpense = prevTxns.filter((t) => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0);
     const prevRec = prevTxns.filter((t) => t.type === 'received').reduce((a, t) => a + (t.amount || 0), 0);
-    const prevDue = prevSent - prevRec;
-    const balanceAfter = type === 'sent' ? prevDue + amt : prevDue - amt;
+    const openingDue = Number(partner.openingDue) || 0;
+    const prevDue = openingDue + prevSent + prevExpense - prevRec;
+
+    let balanceAfter = prevDue;
+    if (type === 'sent' || type === 'expense') {
+      balanceAfter += amt;
+    } else if (type === 'received') {
+      balanceAfter -= amt;
+    }
 
     const tx = await BkashB2BTransaction.create({
       partnerId,
@@ -214,7 +248,7 @@ export async function POST(req) {
       bankAccount: bankAccount ? bankAccount.trim() : '',
       paymentMethod,
       trxId: trxId ? trxId.trim() : '',
-      note: note ? note.trim() : '',
+      note: note ? note.trim() : (type === 'expense' ? 'দৈনিক খরচ বাবদ পাওনা' : ''),
       balanceAfter,
       ref: linkedBkashTxId,
       date: date ? new Date(date) : new Date(),
@@ -268,4 +302,3 @@ export async function DELETE(req) {
 
   return NextResponse.json({ error: 'আইডি প্রয়োজন' }, { status: 400 });
 }
-
