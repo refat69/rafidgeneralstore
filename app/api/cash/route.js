@@ -71,21 +71,21 @@ export async function GET() {
 
   // bKash Cash In Received (কাস্টমার থেকে নগদ ক্যাশ গ্রহণ - ক্যাশইন / সেন্ডমানি বা নিজের সিম ক্যাশআউট)
   const bkashCashIn = bkash
-    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout'].includes(t.type))
-    .reduce((a, t) => a + (t.cashAmount || t.amount), 0);
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out'].includes(t.type))
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || t.amount)), 0);
 
   const todayBkashCashIn = bkash
-    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout'].includes(t.type) && new Date(t.date) >= startOfToday)
-    .reduce((a, t) => a + (t.cashAmount || t.amount), 0);
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out'].includes(t.type) && new Date(t.date) >= startOfToday)
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || t.amount)), 0);
 
   // bKash Cash Out Given (কাস্টমারকে নগদ ক্যাশ প্রদান - ক্যাশআউট)
   const bkashCashOut = bkash
-    .filter((t) => ['cust_cashout', 'agent_cashout'].includes(t.type))
-    .reduce((a, t) => a + (t.cashAmount || (t.amount - (t.profit || 0))), 0);
+    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in'].includes(t.type))
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || (t.amount - (t.profit || 0)))), 0);
 
   const todayBkashCashOut = bkash
-    .filter((t) => ['cust_cashout', 'agent_cashout'].includes(t.type) && new Date(t.date) >= startOfToday)
-    .reduce((a, t) => a + (t.cashAmount || (t.amount - (t.profit || 0))), 0);
+    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in'].includes(t.type) && new Date(t.date) >= startOfToday)
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || (t.amount - (t.profit || 0)))), 0);
 
   // bKash Bundle purchased with cash
   const bundleCashOut = bkash

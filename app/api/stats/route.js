@@ -112,11 +112,11 @@ export async function GET() {
     .reduce((a, s) => a + (s.paidAmount || 0), 0);
   const rechargeCash = rechargesAll.reduce((a, r) => a + (r.amount || 0), 0);
   const bkashCashIn = bkashAll
-    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout'].includes(t.type))
-    .reduce((a, t) => a + (t.cashAmount || t.amount), 0);
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out'].includes(t.type))
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || t.amount)), 0);
   const bkashCashOut = bkashAll
-    .filter((t) => ['cust_cashout', 'agent_cashout'].includes(t.type))
-    .reduce((a, t) => a + (t.cashAmount || (t.amount - (t.profit || 0))), 0);
+    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in'].includes(t.type))
+    .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || (t.amount - (t.profit || 0)))), 0);
   const bundleCashOut = bkashAll
     .filter((t) => t.type === 'bundle_expense' && t.paymentSource === 'cash')
     .reduce((a, t) => a + t.amount, 0);

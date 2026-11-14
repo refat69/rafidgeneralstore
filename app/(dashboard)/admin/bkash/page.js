@@ -30,19 +30,26 @@ export default function BkashPage() {
   const [bkashType, setBkashType] = useState('personal');
   const [selectedAccountId, setSelectedAccountId] = useState('');
 
-  // Personal Transaction States
-  // personal types: 'cust_cashout' | 'self_cashout' | 'cust_cashin' | 'income' | 'expense'
-  const [personalTxType, setPersonalTxType] = useState('cust_cashout');
-  const [cashGivenToCust, setCashGivenToCust] = useState(''); // e.g. 10000 cash given
-  const [personalAmount, setPersonalAmount] = useState(''); // total digital received e.g. 10100
-  const [ratePerThousand, setRatePerThousand] = useState('10'); // default 10 tk per 1000
-  const [customerCharge, setCustomerCharge] = useState(''); // profit e.g. 100
-  const [personalDesc, setPersonalDesc] = useState('');
+  // Personal Transaction States: 2 simple options
+  // 'in' = এক অ্যাকাউন্টে টাকা যোগ হবে (টাকা ঢুকবে / ব্যালেন্স বাড়বে)
+  // 'out' = আর অ্যাকাউন্ট থেকে টাকা বের হবে (টাকা বের হবে / ব্যালেন্স কমবে)
+  const [personalFlow, setPersonalFlow] = useState('in');
 
-  // Personal Cash In (Send Money) specific states
-  const [cashInDigitalAmount, setCashInDigitalAmount] = useState('');
-  const [cashInReceivedCash, setCashInReceivedCash] = useState('');
-  const [cashInFee, setCashInFee] = useState('');
+  // Option 1: অ্যাকাউন্টে টাকা যোগ হবে (Balance IN)
+  const [inBaseAmount, setInBaseAmount] = useState(''); // মূল নগদ টাকা (e.g. 10000)
+  const [inExpense, setInExpense] = useState(''); // খরচ / লাভ / চার্জ (e.g. 100)
+  const [inTotalAmount, setInTotalAmount] = useState(''); // মোট অ্যাকাউন্টে যোগ হবে (10100)
+  const [inGaveCash, setInGaveCash] = useState(true); // কাস্টমারকে নগদ ক্যাশ দিয়েছেন কি না
+  const [inCustomerNumber, setInCustomerNumber] = useState(''); // কাস্টমার মোবাইল নম্বর
+  const [inDesc, setInDesc] = useState('');
+
+  // Option 2: অ্যাকাউন্ট থেকে টাকা বের হবে (Balance OUT)
+  const [outDigitalAmount, setOutDigitalAmount] = useState(''); // অ্যাকাউন্ট থেকে কাটা / পাঠানো টাকা (e.g. 5000)
+  const [outProfit, setOutProfit] = useState(''); // আপনার লাভ / ফি (e.g. 10)
+  const [outReceivedCash, setOutReceivedCash] = useState(''); // কাস্টমার থেকে নগদ ক্যাশ গ্রহণ (5010)
+  const [outTookCash, setOutTookCash] = useState(true); // নগদ ক্যাশ ড্রয়ারে পেয়েছেন কি না
+  const [outCustomerNumber, setOutCustomerNumber] = useState(''); // কাস্টমার মোবাইল নম্বর
+  const [outDesc, setOutDesc] = useState('');
 
   // Agent Transaction States
   // agent types: 'agent_cashin' | 'agent_cashout'
@@ -145,82 +152,70 @@ export default function BkashPage() {
     loadData();
   }
 
-  // Personal Cash In / Send Money calculations
-  // Scenario: shopkeeper sends 5000 from SIM to customer, takes 5010 cash from customer (10 profit),
-  // OR takes exact 5000 cash from customer (0 profit).
-  const handleCashInDigitalChange = (val) => {
-    setCashInDigitalAmount(val);
+  // Option 1: অ্যাকাউন্টে টাকা যোগ হবে (Balance IN) Handlers
+  const handleInBaseChange = (val) => {
+    setInBaseAmount(val);
+    const base = Number(val) || 0;
+    const exp = Number(inExpense) || 0;
+    const total = base + exp;
+    setInTotalAmount(total > 0 ? String(total) : '');
+  };
+
+  const handleInExpenseChange = (val) => {
+    setInExpense(val);
+    const base = Number(inBaseAmount) || 0;
+    const exp = Number(val) || 0;
+    const total = base + exp;
+    setInTotalAmount(total > 0 ? String(total) : '');
+  };
+
+  const handleInTotalChange = (val) => {
+    setInTotalAmount(val);
+    const total = Number(val) || 0;
+    const base = Number(inBaseAmount) || 0;
+    if (base > 0 && total >= base) {
+      setInExpense(String(total - base));
+    }
+  };
+
+  const setQuickInExpense = (amt) => {
+    setInExpense(String(amt));
+    const base = Number(inBaseAmount) || 0;
+    const total = base + amt;
+    setInTotalAmount(total > 0 ? String(total) : '');
+  };
+
+  // Option 2: অ্যাকাউন্ট থেকে টাকা বের হবে (Balance OUT) Handlers
+  const handleOutDigitalChange = (val) => {
+    setOutDigitalAmount(val);
     const digital = Number(val) || 0;
-    const fee = Number(cashInFee) || 0;
-    const totalCash = digital + fee;
-    setCashInReceivedCash(totalCash ? String(totalCash) : '');
-    setPersonalAmount(val);
-    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${totalCash}৳, লাভ +${fee}৳)`);
+    const fee = Number(outProfit) || 0;
+    const cash = digital + fee;
+    setOutReceivedCash(cash > 0 ? String(cash) : '');
   };
 
-  const handleCashInFeeChange = (val) => {
-    setCashInFee(val);
-    const digital = Number(cashInDigitalAmount) || 0;
+  const handleOutProfitChange = (val) => {
+    setOutProfit(val);
+    const digital = Number(outDigitalAmount) || 0;
     const fee = Number(val) || 0;
-    const totalCash = digital + fee;
-    setCashInReceivedCash(totalCash ? String(totalCash) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${totalCash}৳, লাভ +${fee}৳)`);
+    const cash = digital + fee;
+    setOutReceivedCash(cash > 0 ? String(cash) : '');
   };
 
-  const handleCashInReceivedChange = (val) => {
-    setCashInReceivedCash(val);
-    const received = Number(val) || 0;
-    const digital = Number(cashInDigitalAmount) || 0;
-    const fee = Math.max(0, received - digital);
-    setCashInFee(fee ? String(fee) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশ-ইন / সেন্ড মানি (সিমে -${digital}৳, ক্যাশ পাওয়া +${received}৳, লাভ +${fee}৳)`);
-  };
-
-  // Personal Customer Cash Out calculations
-  // Scenario: customer sends 10100 to SIM, shop gives 10000 cash, profit is 100.
-  const handleCashGivenChange = (val) => {
-    setCashGivenToCust(val);
+  const handleOutReceivedCashChange = (val) => {
+    setOutReceivedCash(val);
     const cash = Number(val) || 0;
-    const rate = Number(ratePerThousand) || 0;
-    const chg = Math.round((cash / 1000) * rate);
-    setCustomerCharge(chg ? String(chg) : '');
-    const totalDigital = cash + chg;
-    setPersonalAmount(totalDigital ? String(totalDigital) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+    const digital = Number(outDigitalAmount) || 0;
+    if (digital > 0 && cash >= digital) {
+      setOutProfit(String(cash - digital));
+    }
   };
 
-  const handleRateChange = (val) => {
-    setRatePerThousand(val);
-    const cash = Number(cashGivenToCust) || 0;
-    const rate = Number(val) || 0;
-    const chg = Math.round((cash / 1000) * rate);
-    setCustomerCharge(chg ? String(chg) : '');
-    const totalDigital = cash + chg;
-    setPersonalAmount(totalDigital ? String(totalDigital) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
-  };
-
-  const handleProfitChange = (val) => {
-    setCustomerCharge(val);
-    const cash = Number(cashGivenToCust) || 0;
-    const chg = Number(val) || 0;
-    const totalDigital = cash + chg;
-    setPersonalAmount(totalDigital ? String(totalDigital) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
-  };
-
-  const handleDigitalAmountChange = (val) => {
-    setPersonalAmount(val);
-    if (personalTxType !== 'cust_cashout') return;
-    const totalDigital = Number(val) || 0;
-    const rate = Number(ratePerThousand) || 0;
-    // total = cash * (1 + rate/1000)
-    const factor = 1 + rate / 1000;
-    const cash = Math.round(totalDigital / factor);
-    const chg = totalDigital - cash;
-    setCashGivenToCust(cash ? String(cash) : '');
-    setCustomerCharge(chg ? String(chg) : '');
-    setPersonalDesc(`কাস্টমার ক্যাশআউট (সিমে ${totalDigital}৳, ক্যাশ দেওয়া ${cash}৳, লাভ ${chg}৳)`);
+  const setQuickOutProfit = (amt) => {
+    setOutProfit(String(amt));
+    const digital = Number(outDigitalAmount) || 0;
+    const cash = digital + amt;
+    setOutReceivedCash(cash > 0 ? String(cash) : '');
   };
 
   // Agent Commission calculations
@@ -266,68 +261,97 @@ export default function BkashPage() {
     loadData();
   }
 
+  // Submit Personal Transaction: 2 clear flows
   async function submitPersonalTx(e) {
     e.preventDefault();
-    const isCashout = personalTxType === 'cust_cashout';
-    const isCashin = personalTxType === 'cust_cashin';
-
-    let digitalAmt = Number(personalAmount);
-    let cashAmt = digitalAmt;
-    let profit = 0;
-    let rate = 0;
-    let chg = 0;
-
-    if (isCashout) {
-      digitalAmt = Number(personalAmount);
-      cashAmt = Number(cashGivenToCust) || digitalAmt;
-      chg = Number(customerCharge) || 0;
-      rate = Number(ratePerThousand) || 0;
-      profit = chg;
-    } else if (isCashin) {
-      digitalAmt = Number(cashInDigitalAmount || personalAmount);
-      cashAmt = Number(cashInReceivedCash || personalAmount);
-      profit = Number(cashInFee) || 0;
-      chg = profit;
-    }
-
-    if (!digitalAmt || digitalAmt <= 0) {
-      toast.error('সঠিক টাকার পরিমাণ লিখুন');
-      return;
-    }
-
+    const isFlowIn = personalFlow === 'in';
     const selectedAcc = accounts.find((a) => a._id === selectedAccountId);
 
-    setLoading(true);
-    const res = await fetch('/api/bkash', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bkashType: 'personal',
-        accountId: selectedAccountId,
-        accountNumber: selectedAcc ? selectedAcc.number : '',
-        type: personalTxType,
-        description: personalDesc || (isCashin ? 'কাস্টমার সেন্ড মানি / ক্যাশ ইন' : 'পার্সোনাল লেনদেন'),
-        amount: digitalAmt, // digital amount credited to or debited from SIM balance
-        cashAmount: cashAmt, // physical cash handed out or taken
-        ratePerThousand: rate,
-        customerCharge: chg,
-        profit: profit,
-      }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে');
-      return;
+    if (isFlowIn) {
+      // 🟢 Option 1: অ্যাকাউন্টে টাকা যোগ হবে (টাকা ঢুকবে / ব্যালেন্স বাড়বে)
+      const base = Number(inBaseAmount) || 0;
+      const expense = Number(inExpense) || 0;
+      const totalDigital = Number(inTotalAmount) || (base + expense);
+
+      if (!totalDigital || totalDigital <= 0) {
+        toast.error('সঠিক টাকার পরিমাণ লিখুন');
+        return;
+      }
+
+      setLoading(true);
+      const res = await fetch('/api/bkash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bkashType: 'personal',
+          accountId: selectedAccountId,
+          accountNumber: selectedAcc ? selectedAcc.number : '',
+          type: 'balance_in',
+          description:
+            inDesc.trim() ||
+            `অ্যাকাউন্টে টাকা যোগ${inCustomerNumber ? ` [${inCustomerNumber}]` : ''} (সিমে +${taka(totalDigital)}${inGaveCash ? `, ক্যাশ দেওয়া -${taka(base)}` : ''}${expense > 0 ? `, লাভ +${taka(expense)}` : ''})`,
+          amount: totalDigital, // Digital balance added to SIM (মূল টাকা + খরচ)
+          cashAmount: inGaveCash ? base : 0, // Physical cash handed to customer from drawer
+          customerCharge: expense,
+          profit: expense,
+          ref: inCustomerNumber.trim(),
+        }),
+      });
+      setLoading(false);
+      if (!res.ok) {
+        toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে');
+        return;
+      }
+      toast.success('✅ বিকাশ অ্যাকাউন্টে টাকা সফলভাবে যোগ হয়েছে!');
+      setInBaseAmount('');
+      setInExpense('');
+      setInTotalAmount('');
+      setInCustomerNumber('');
+      setInDesc('');
+      loadData();
+    } else {
+      // 🔴 Option 2: অ্যাকাউন্ট থেকে টাকা বের হবে (টাকা বের হবে / ব্যালেন্স কমবে)
+      const digital = Number(outDigitalAmount) || 0;
+      const profit = Number(outProfit) || 0;
+      const cashReceived = Number(outReceivedCash) || (digital + profit);
+
+      if (!digital || digital <= 0) {
+        toast.error('সঠিক টাকার পরিমাণ লিখুন');
+        return;
+      }
+
+      setLoading(true);
+      const res = await fetch('/api/bkash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bkashType: 'personal',
+          accountId: selectedAccountId,
+          accountNumber: selectedAcc ? selectedAcc.number : '',
+          type: 'balance_out',
+          description:
+            outDesc.trim() ||
+            `অ্যাকাউন্ট থেকে টাকা বের${outCustomerNumber ? ` [${outCustomerNumber}]` : ''} (সিমে -${taka(digital)}${outTookCash ? `, ক্যাশ গ্রহণ +${taka(cashReceived)}` : ''}${profit > 0 ? `, লাভ +${taka(profit)}` : ''})`,
+          amount: digital, // Digital balance deducted from SIM
+          cashAmount: outTookCash ? cashReceived : 0, // Cash received in drawer
+          customerCharge: profit,
+          profit: profit,
+          ref: outCustomerNumber.trim(),
+        }),
+      });
+      setLoading(false);
+      if (!res.ok) {
+        toast.error('লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে');
+        return;
+      }
+      toast.success('✅ বিকাশ অ্যাকাউন্ট থেকে টাকা সফলভাবে বের করা হয়েছে!');
+      setOutDigitalAmount('');
+      setOutProfit('');
+      setOutReceivedCash('');
+      setOutCustomerNumber('');
+      setOutDesc('');
+      loadData();
     }
-    toast.success('✅ পার্সোনাল লেনদেন সফল হয়েছে!');
-    setPersonalAmount('');
-    setCashGivenToCust('');
-    setCustomerCharge('');
-    setCashInDigitalAmount('');
-    setCashInReceivedCash('');
-    setCashInFee('');
-    setPersonalDesc('');
-    loadData();
   }
 
   async function submitAgentTx(e) {
@@ -665,196 +689,437 @@ export default function BkashPage() {
             </div>
           )}
 
-          {/* Personal Transaction Form */}
+          {/* Personal Transaction Form: 2 Clear Options */}
           {bkashType === 'personal' && (
-            <form className="form-grid mt8" onSubmit={submitPersonalTx}>
-              <div>
-                <label>লেনদেনের ধরণ</label>
-                <select
-                  value={personalTxType}
-                  onChange={(e) => {
-                    setPersonalTxType(e.target.value);
-                    if (e.target.value === 'cust_cashout') {
-                      setPersonalDesc('কাস্টমার ক্যাশআউট');
-                    } else if (e.target.value === 'self_cashout') {
-                      setPersonalDesc('পার্সোনাল সিম ব্যালেন্স ক্যাশআউট / উইথড্র');
-                    } else if (e.target.value === 'cust_cashin') {
-                      setPersonalDesc('কাস্টমার সেন্ড মানি / ক্যাশ ইন');
-                    } else {
-                      setPersonalDesc('');
-                    }
+            <div className="mt8">
+              {/* 2 Clear Option Selectors */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                  gap: 10,
+                  marginBottom: 14,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setPersonalFlow('in')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: personalFlow === 'in' ? '2px solid #16a34a' : '1px solid var(--border)',
+                    background: personalFlow === 'in' ? '#f0fdf4' : '#ffffff',
+                    color: personalFlow === 'in' ? '#166534' : 'var(--text)',
+                    fontWeight: 'bold',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: personalFlow === 'in' ? '0 2px 8px rgba(22, 163, 74, 0.15)' : 'none',
                   }}
                 >
-                  <option value="cust_cashout">📥 কাস্টমার ক্যাশআউট (ক্যাশ সার্ভিস - ব্যালেন্সে বেশি নিবেন)</option>
-                  <option value="self_cashout">💸 সিম ব্যালেন্স ক্যাশআউট / উইথড্র</option>
-                  <option value="cust_cashin">📤 কাস্টমার সেন্ড মানি / ক্যাশ ইন</option>
-                  <option value="income">💰 ক্যাশ লোড / আয়</option>
-                  <option value="expense">🔻 অন্যান্য খরচ</option>
-                </select>
-              </div>
-
-              {personalTxType === 'cust_cashout' ? (
-                <>
-                  <div>
-                    <label>কাস্টমারকে দেওয়া নগদ ক্যাশ (৳) *</label>
-                    <input
-                      type="number"
-                      placeholder="যেমন: ১০০০০"
-                      value={cashGivenToCust}
-                      onChange={(e) => handleCashGivenChange(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label>হাজার প্রতি লাভ / চার্জ (৳)</label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      placeholder="যেমন: ১০"
-                      value={ratePerThousand}
-                      onChange={(e) => handleRateChange(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label>আপনার লাভ / চার্জ (৳)</label>
-                    <input
-                      type="number"
-                      step="1"
-                      placeholder="যেমন: ১০০"
-                      value={customerCharge}
-                      onChange={(e) => handleProfitChange(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ fontWeight: 'bold', color: '#be185d' }}>
-                      📲 কাস্টমার থেকে সিমে প্রাপ্ত মোট ব্যালেন্স (৳) *
-                    </label>
-                    <input
-                      type="number"
-                      style={{ fontSize: 16, fontWeight: 'bold', background: '#fdf2f8', borderColor: '#f472b6' }}
-                      placeholder="যেমন: ১০১০০"
-                      value={personalAmount}
-                      onChange={(e) => handleDigitalAmountChange(e.target.value)}
-                      required
-                    />
-                    <small className="muted" style={{ display: 'block', marginTop: 4 }}>
-                      কাস্টমার লাভ সহ মোট যে টাকা সিমে পাঠিয়েছে (যেমন: ১০০০০ ক্যাশ + ১০০ লাভ = ১০১০০ ৳)
-                    </small>
-                  </div>
-
-                  {/* Visual calculation preview */}
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🟢</div>
+                  <div>১. অ্যাকাউন্টে টাকা যোগ হবে</div>
                   <div
                     style={{
-                      gridColumn: '1 / -1',
-                      background: '#f0fdf4',
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      border: '1px solid #86efac',
+                      fontSize: 11,
+                      fontWeight: 'normal',
+                      color: personalFlow === 'in' ? '#15803d' : 'var(--muted)',
+                      marginTop: 2,
                     }}
                   >
-                    <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: 6 }}>
-                      💡 লেনদেনের নিখুঁত হিসাব বিবরণী:
-                    </div>
-                    <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
-                      • আপনার বিকাশ সিমে ঢুকবে: <b style={{ color: '#15803d' }}>+{taka(Number(personalAmount) || 0)}</b> (ডিজিটাল ব্যালেন্স বাড়বে)
-                      <br />• ক্যাশবাক্স থেকে কাস্টমারকে নগদ ক্যাশ দেবেন: <b style={{ color: '#dc2626' }}>-{taka(Number(cashGivenToCust) || 0)}</b> (ক্যাশ কমবে)
-                      <br />• আপনার নিট লাভ: <b style={{ color: '#16a34a' }}>+{taka(Number(customerCharge) || 0)}</b>
-                    </div>
+                    (টাকা ঢুকবে / ব্যালেন্স বাড়বে)
                   </div>
-                </>
-              ) : personalTxType === 'cust_cashin' ? (
-                <>
-                  <div>
-                    <label>সিমে প্রেরিত ডিজিটাল ব্যালেন্স (৳) *</label>
-                    <input
-                      type="number"
-                      placeholder="যেমন: ৫০০০"
-                      value={cashInDigitalAmount}
-                      onChange={(e) => handleCashInDigitalChange(e.target.value)}
-                      required
-                    />
-                  </div>
+                </button>
 
-                  <div>
-                    <label>আপনার লাভ / চার্জ (৳)</label>
-                    <input
-                      type="number"
-                      placeholder="যেমন: ১০ (বা ০)"
-                      value={cashInFee}
-                      onChange={(e) => handleCashInFeeChange(e.target.value)}
-                    />
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ fontWeight: 'bold', color: '#15803d' }}>
-                      💵 কাস্টমার থেকে প্রাপ্ত মোট নগদ ক্যাশ (৳) *
-                    </label>
-                    <input
-                      type="number"
-                      style={{ fontSize: 16, fontWeight: 'bold', background: '#f0fdf4', borderColor: '#86efac' }}
-                      placeholder="যেমন: ৫০১০"
-                      value={cashInReceivedCash}
-                      onChange={(e) => handleCashInReceivedChange(e.target.value)}
-                      required
-                    />
-                    <small className="muted" style={{ display: 'block', marginTop: 4 }}>
-                      কাস্টমার আপনাকে নগদ যে টাকা হাতে দিলো (যা সরাসরি দোকানের ক্যাশবাক্সে জমা হবে)
-                    </small>
-                  </div>
-
-                  {/* Visual calculation preview for Cash In */}
+                <button
+                  type="button"
+                  onClick={() => setPersonalFlow('out')}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: personalFlow === 'out' ? '2px solid #dc2626' : '1px solid var(--border)',
+                    background: personalFlow === 'out' ? '#fef2f2' : '#ffffff',
+                    color: personalFlow === 'out' ? '#991b1b' : 'var(--text)',
+                    fontWeight: 'bold',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: personalFlow === 'out' ? '0 2px 8px rgba(220, 38, 38, 0.15)' : 'none',
+                  }}
+                >
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🔴</div>
+                  <div>২. অ্যাকাউন্ট থেকে টাকা বের হবে</div>
                   <div
                     style={{
-                      gridColumn: '1 / -1',
-                      background: '#f0fdf4',
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      border: '1px solid #86efac',
+                      fontSize: 11,
+                      fontWeight: 'normal',
+                      color: personalFlow === 'out' ? '#b91c1c' : 'var(--muted)',
+                      marginTop: 2,
                     }}
                   >
-                    <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: 6 }}>
-                      💡 ক্যাশ-ইন / সেন্ড মানি হিসাব বিবরণী:
-                    </div>
-                    <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
-                      • কাস্টমার থেকে নগদ ক্যাশ পাবেন: <b style={{ color: '#16a34a' }}>+{taka(Number(cashInReceivedCash) || 0)}</b> (ক্যাশবাক্সে নগদ টাকা বাড়বে)
-                      <br />• আপনার বিকাশ সিম থেকে ব্যালেন্স কমবে: <b style={{ color: '#dc2626' }}>-{taka(Number(cashInDigitalAmount) || 0)}</b> (ডিজিটাল ব্যালেন্স কমবে)
-                      <br />• আপনার লাভ / ফি: <b style={{ color: '#16a34a' }}>+{taka(Number(cashInFee) || 0)}</b>
-                    </div>
+                    (টাকা বের হবে / ব্যালেন্স কমবে)
                   </div>
-                </>
-              ) : (
-                <div>
-                  <label>টাকার পরিমাণ (৳) *</label>
-                  <input
-                    type="number"
-                    placeholder="যেমন: ৫০০০"
-                    value={personalAmount}
-                    onChange={(e) => setPersonalAmount(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
-
-              {personalTxType === 'self_cashout' && (
-                <div style={{ gridColumn: '1 / -1', background: '#eff6ff', padding: '10px 14px', borderRadius: 8, border: '1px solid #bfdbfe' }}>
-                  <div style={{ fontSize: 13, color: '#1e40af', lineHeight: 1.8 }}>
-                    ℹ️ পার্সোনাল নম্বর থেকে ব্যালেন্স ক্যাশ করা হলে সিম থেকে ব্যালেন্স <b>-{taka(Number(personalAmount) || 0)}</b> কমে যাবে এবং ক্যাশবাক্সে নগদ ক্যাশ <b>+{taka(Number(personalAmount) || 0)}</b> জমা হবে।
-                  </div>
-                </div>
-              )}
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label>বিবরণ (নোট)</label>
-                <input value={personalDesc} onChange={(e) => setPersonalDesc(e.target.value)} placeholder="বিবরণ লিখুন" />
+                </button>
               </div>
 
-              <button className="btn pink" style={{ gridColumn: '1 / -1', marginTop: 6 }} disabled={loading}>
-                {loading ? 'সংরক্ষণ হচ্ছে...' : '✅ পার্সোনাল লেনদেন নিশ্চিত করুন'}
-              </button>
-            </form>
+              {/* Form Container */}
+              <form className="form-grid" onSubmit={submitPersonalTx}>
+                {personalFlow === 'in' ? (
+                  <>
+                    {/* Notice for Flow IN */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        fontSize: 12.5,
+                        color: '#166534',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      💡 <b>অ্যাকাউন্টে টাকা যোগ:</b> আপনি খরচ যত ইচ্ছা রাখবেন, সেই খরচের টাকাও মূল টাকার সাথে স্বয়ংক্রিয়ভাবে আপনার বিকাশ ব্যালেন্সে যোগ হবে।
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 'bold' }}>মূল টাকার পরিমাণ (৳) *</label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ১০০০০"
+                        value={inBaseAmount}
+                        onChange={(e) => handleInBaseChange(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 'bold' }}>খরচ / আপনার লাভ (৳)</label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ১০০ বা যা ইচ্ছা"
+                        value={inExpense}
+                        onChange={(e) => handleInExpenseChange(e.target.value)}
+                      />
+                      <div className="flex align-center mt4" style={{ gap: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>কুইক:</span>
+                        {[50, 100, 150, 200, 0].map((amt) => (
+                          <button
+                            key={amt}
+                            type="button"
+                            className="btn sm"
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: 11,
+                              background: inExpense === String(amt) ? '#16a34a' : '#f1f5f9',
+                              color: inExpense === String(amt) ? '#fff' : 'var(--text)',
+                              border: 'none',
+                              borderRadius: 4,
+                            }}
+                            onClick={() => setQuickInExpense(amt)}
+                          >
+                            {amt === 0 ? '৳০' : `+৳${amt}`}
+                          </button>
+                        ))}
+                        {inBaseAmount && Number(inBaseAmount) > 0 && (
+                          <button
+                            type="button"
+                            className="btn sm"
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: 10,
+                              background: '#fdf2f8',
+                              color: '#be185d',
+                              border: '1px solid #fbcfe8',
+                              borderRadius: 4,
+                            }}
+                            onClick={() => setQuickInExpense(Math.round((Number(inBaseAmount) / 1000) * 10))}
+                          >
+                            ⚡ হাজারে ১০৳ হারে
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontWeight: 'bold', color: '#166534' }}>
+                        📲 মোট বিকাশ অ্যাকাউন্টে যোগ হবে (৳) *
+                      </label>
+                      <input
+                        type="number"
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 'bold',
+                          background: '#f0fdf4',
+                          borderColor: '#86efac',
+                          color: '#15803d',
+                        }}
+                        placeholder="যেমন: ১০১০০"
+                        value={inTotalAmount}
+                        onChange={(e) => handleInTotalChange(e.target.value)}
+                        required
+                      />
+                      <small style={{ color: '#166534', display: 'block', marginTop: 4, fontSize: 12 }}>
+                        ✓ মূল টাকা (৳{inBaseAmount || 0}) + খরচ (৳{inExpense || 0}) = মোট অ্যাকাউন্টে যোগ <b>৳{inTotalAmount || (Number(inBaseAmount) + Number(inExpense)) || 0}</b>
+                      </small>
+                    </div>
+
+                    {/* Cash drawer checkbox */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#ffffff',
+                        border: '1px solid var(--border)',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          cursor: 'pointer',
+                          margin: 0,
+                          fontSize: 13.5,
+                          fontWeight: 'bold',
+                          color: inGaveCash ? '#b91c1c' : 'var(--muted)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={inGaveCash}
+                          onChange={(e) => setInGaveCash(e.target.checked)}
+                          style={{ width: 18, height: 18 }}
+                        />
+                        কাস্টমারকে ক্যাশবাক্স থেকে নগদ ক্যাশ দেওয়া হয়েছে ({inGaveCash ? `ড্রয়ার থেকে -৳${inBaseAmount || 0} মাইনাস হবে` : 'না দিলে টিক তুলে দিন'})
+                      </label>
+                      {!inGaveCash && (
+                        <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, paddingLeft: 28 }}>
+                          ℹ️ ক্যাশবাক্স থেকে কোনো টাকা কাটা হবে না, শুধুই বিকাশ অ্যাকাউন্টে ব্যালেন্স বৃদ্ধি পাবে।
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>কাস্টমার মোবাইল নম্বর (ঐচ্ছিক)</label>
+                      <input
+                        placeholder="যেমন: 017xxxxxxxx"
+                        value={inCustomerNumber}
+                        onChange={(e) => setInCustomerNumber(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label>বিবরণ / নোট (ঐচ্ছিক)</label>
+                      <input
+                        placeholder="যেমন: কাস্টমার ক্যাশআউট বা ব্যালেন্স লোড"
+                        value={inDesc}
+                        onChange={(e) => setInDesc(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Live Summary Preview for Flow IN */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#f0fdf4',
+                        padding: '12px 16px',
+                        borderRadius: 10,
+                        border: '1px solid #86efac',
+                      }}
+                    >
+                      <div style={{ fontWeight: 'bold', color: '#166534', marginBottom: 6 }}>
+                        💡 লেনদেনের হিসাব বিবরণী:
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.8, color: '#14532d' }}>
+                        • আপনার বিকাশ অ্যাকাউন্টে ব্যালেন্স যোগ হবে: <b style={{ color: '#15803d' }}>+{taka(Number(inTotalAmount) || (Number(inBaseAmount) + Number(inExpense)) || 0)}</b> (মূল টাকা + খরচ)
+                        <br />• ক্যাশবাক্স থেকে কাস্টমারকে নগদ ক্যাশ দেবেন: <b style={{ color: inGaveCash ? '#dc2626' : '#64748b' }}>{inGaveCash ? `-${taka(Number(inBaseAmount) || 0)}` : '৳০ (ক্যাশ দেওয়া হয়নি)'}</b>
+                        <br />• আপনার নিট লাভ: <b style={{ color: '#16a34a' }}>+{taka(Number(inExpense) || 0)}</b>
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn green"
+                      style={{ gridColumn: '1 / -1', marginTop: 6, fontSize: 15, padding: '10px 14px' }}
+                      disabled={loading}
+                    >
+                      {loading ? 'সংরক্ষণ হচ্ছে...' : '🟢 অ্যাকাউন্টে টাকা যোগ নিশ্চিত করুন'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Notice for Flow OUT */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        fontSize: 12.5,
+                        color: '#991b1b',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      💡 <b>অ্যাকাউন্ট থেকে টাকা বের:</b> বিকাশ থেকে কাস্টমারকে সেন্ড মানি (ক্যাশ-ইন) অথবা নিজের প্রয়োজনে টাকা বের করার হিসাব।
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 'bold', color: '#dc2626' }}>
+                        অ্যাকাউন্ট থেকে কাটা / পাঠানো টাকা (৳) *
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ৫০০০"
+                        value={outDigitalAmount}
+                        onChange={(e) => handleOutDigitalChange(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 'bold' }}>আপনার লাভ / ফি / চার্জ (৳)</label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ১০ (বা ০)"
+                        value={outProfit}
+                        onChange={(e) => handleOutProfitChange(e.target.value)}
+                      />
+                      <div className="flex align-center mt4" style={{ gap: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>কুইক:</span>
+                        {[5, 10, 15, 20, 0].map((amt) => (
+                          <button
+                            key={amt}
+                            type="button"
+                            className="btn sm"
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: 11,
+                              background: outProfit === String(amt) ? '#dc2626' : '#f1f5f9',
+                              color: outProfit === String(amt) ? '#fff' : 'var(--text)',
+                              border: 'none',
+                              borderRadius: 4,
+                            }}
+                            onClick={() => setQuickOutProfit(amt)}
+                          >
+                            {amt === 0 ? '৳০' : `+৳${amt}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontWeight: 'bold', color: '#16a34a' }}>
+                        💵 কাস্টমার থেকে নগদ ক্যাশ গ্রহণ (৳) *
+                      </label>
+                      <input
+                        type="number"
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 'bold',
+                          background: '#f0fdf4',
+                          borderColor: '#86efac',
+                          color: '#15803d',
+                        }}
+                        placeholder="যেমন: ৫০১০"
+                        value={outReceivedCash}
+                        onChange={(e) => handleOutReceivedCashChange(e.target.value)}
+                        required
+                      />
+                      <small style={{ color: '#166534', display: 'block', marginTop: 4, fontSize: 12 }}>
+                        ✓ পাঠানো টাকা (৳{outDigitalAmount || 0}) + লাভ (৳{outProfit || 0}) = মোট ক্যাশ পাওয়া <b>৳{outReceivedCash || (Number(outDigitalAmount) + Number(outProfit)) || 0}</b>
+                      </small>
+                    </div>
+
+                    {/* Cash drawer checkbox for OUT */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#ffffff',
+                        border: '1px solid var(--border)',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          cursor: 'pointer',
+                          margin: 0,
+                          fontSize: 13.5,
+                          fontWeight: 'bold',
+                          color: outTookCash ? '#15803d' : 'var(--muted)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={outTookCash}
+                          onChange={(e) => setOutTookCash(e.target.checked)}
+                          style={{ width: 18, height: 18 }}
+                        />
+                        কাস্টমার থেকে নগদ ক্যাশ হাতে পেয়েছি ({outTookCash ? `ড্রয়ারে +৳${outReceivedCash || 0} নগদ ক্যাশ জমা হবে` : 'না পেলে টিক তুলে দিন'})
+                      </label>
+                      {!outTookCash && (
+                        <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4, paddingLeft: 28 }}>
+                          ℹ️ ক্যাশবাক্সে কোনো নগদ ক্যাশ যোগ হবে না (ব্যক্তিগত খরচ বা স্থানান্তর)।
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>কাস্টমার মোবাইল নম্বর (ঐচ্ছিক)</label>
+                      <input
+                        placeholder="যেমন: 017xxxxxxxx"
+                        value={outCustomerNumber}
+                        onChange={(e) => setOutCustomerNumber(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label>বিবরণ / নোট (ঐচ্ছিক)</label>
+                      <input
+                        placeholder="যেমন: কাস্টমার ক্যাশ-ইন / সেন্ড মানি"
+                        value={outDesc}
+                        onChange={(e) => setOutDesc(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Live Summary Preview for Flow OUT */}
+                    <div
+                      style={{
+                        gridColumn: '1 / -1',
+                        background: '#fef2f2',
+                        padding: '12px 16px',
+                        borderRadius: 10,
+                        border: '1px solid #fecaca',
+                      }}
+                    >
+                      <div style={{ fontWeight: 'bold', color: '#991b1b', marginBottom: 6 }}>
+                        💡 লেনদেনের হিসাব বিবরণী:
+                      </div>
+                      <div style={{ fontSize: 13, lineHeight: 1.8, color: '#7f1d1d' }}>
+                        • আপনার বিকাশ অ্যাকাউন্ট থেকে ব্যালেন্স কাটবে: <b style={{ color: '#dc2626' }}>-{taka(Number(outDigitalAmount) || 0)}</b>
+                        <br />• ক্যাশবাক্সে নগদ টাকা জমা হবে: <b style={{ color: outTookCash ? '#16a34a' : '#64748b' }}>{outTookCash ? `+${taka(Number(outReceivedCash) || (Number(outDigitalAmount) + Number(outProfit)) || 0)}` : '৳০ (ক্যাশ জমা হয়নি)'}</b>
+                        <br />• আপনার নিট লাভ: <b style={{ color: '#16a34a' }}>+{taka(Number(outProfit) || 0)}</b>
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn red"
+                      style={{ gridColumn: '1 / -1', marginTop: 6, fontSize: 15, padding: '10px 14px' }}
+                      disabled={loading}
+                    >
+                      {loading ? 'সংরক্ষণ হচ্ছে...' : '🔴 অ্যাকাউন্ট থেকে টাকা বের নিশ্চিত করুন'}
+                    </button>
+                  </>
+                )}
+              </form>
+            </div>
           )}
 
           {/* Agent Transaction Form */}
@@ -1007,8 +1272,27 @@ export default function BkashPage() {
               </thead>
               <tbody>
                 {txns.map((t) => {
-                  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout'].includes(t.type);
+                  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in'].includes(t.type);
                   const isBundle = t.type === 'bundle_expense';
+                  const isPersonalIn = t.type === 'balance_in' || t.type === 'cust_cashout';
+                  const isPersonalOut = t.type === 'balance_out' || t.type === 'cust_cashin' || t.type === 'self_cashout';
+
+                  let badgeLabel = 'Personal';
+                  let badgeClass = 'pink';
+                  if (isBundle) {
+                    badgeLabel = 'বান্ডেল খরচ';
+                    badgeClass = 'amber';
+                  } else if (t.bkashType === 'agent') {
+                    badgeLabel = isPlus ? 'এজেন্ট ক্যাশআউট' : 'এজেন্ট ক্যাশইন';
+                    badgeClass = 'blue';
+                  } else if (isPersonalIn) {
+                    badgeLabel = '🟢 টাকা যোগ (+)';
+                    badgeClass = 'green';
+                  } else if (isPersonalOut) {
+                    badgeLabel = '🔴 টাকা বের (−)';
+                    badgeClass = 'red';
+                  }
+
                   return (
                     <tr key={t._id}>
                       <td>
@@ -1018,19 +1302,17 @@ export default function BkashPage() {
                         <b>{t.accountNumber || 'মূল অ্যাকাউন্ট'}</b>
                       </td>
                       <td>
-                        <span
-                          className={`badge ${isBundle ? 'amber' : t.bkashType === 'agent' ? 'blue' : 'pink'}`}
-                          style={{ fontSize: 10 }}
-                        >
-                          {isBundle ? 'বান্ডেল খরচ' : t.bkashType === 'agent' ? 'Agent' : 'Personal'}
+                        <span className={`badge ${badgeClass}`} style={{ fontSize: 10 }}>
+                          {badgeLabel}
                         </span>
                         <div style={{ fontSize: 12, fontWeight: 'bold', marginTop: 2 }}>{t.description}</div>
-                        {t.cashAmount > 0 && t.type === 'cust_cashout' && (
+                        {t.ref && <div style={{ fontSize: 11, color: 'var(--muted)' }}>মোবাইল/রেফ: {t.ref}</div>}
+                        {t.cashAmount > 0 && isPlus && (
                           <div style={{ fontSize: 11, color: '#dc2626' }}>
                             💸 ক্যাশ প্রদান: {taka(t.cashAmount)}
                           </div>
                         )}
-                        {t.cashAmount > 0 && t.type === 'cust_cashin' && (
+                        {t.cashAmount > 0 && !isPlus && !isBundle && (
                           <div style={{ fontSize: 11, color: '#16a34a' }}>
                             💵 ক্যাশ গ্রহণ: {taka(t.cashAmount)}
                           </div>
