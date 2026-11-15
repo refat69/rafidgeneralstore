@@ -56,6 +56,11 @@ export async function POST(req) {
     lowStockAt: Number(body.lowStockAt) || 5,
     imageUrl: body.imageUrl || '',
     description: body.description || '',
+    purchaseType: body.purchaseType || 'piece',
+    packetUnit: body.packetUnit || 'কার্টন',
+    piecesPerPacket: Number(body.piecesPerPacket) || 1,
+    packetBuyPrice: Number(body.packetBuyPrice) || 0,
+    packetSellPrice: Number(body.packetSellPrice) || 0,
   });
   if (p.stockQty > 0) {
     await StockLog.create({
@@ -85,6 +90,11 @@ export async function PUT(req) {
       lowStockAt: Number(body.lowStockAt) || 5,
       imageUrl: body.imageUrl || '',
       description: body.description || '',
+      purchaseType: body.purchaseType || 'piece',
+      packetUnit: body.packetUnit || 'কার্টন',
+      piecesPerPacket: Number(body.piecesPerPacket) || 1,
+      packetBuyPrice: Number(body.packetBuyPrice) || 0,
+      packetSellPrice: Number(body.packetSellPrice) || 0,
     },
     { new: true }
   );

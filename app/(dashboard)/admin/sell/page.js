@@ -48,14 +48,14 @@ export default function SellPage() {
     fetch('/api/products?t=' + Date.now())
       .then((r) => r.json())
       .then((d) => setProducts(d.products || []))
-      .catch(() => {});
+      .catch(() => { });
   }
 
   function loadCustomers() {
     fetch('/api/customers?t=' + Date.now())
       .then((r) => r.json())
       .then((d) => setCustomers(d.customers || []))
-      .catch(() => {});
+      .catch(() => { });
   }
 
   function loadBaki() {
@@ -69,14 +69,14 @@ export default function SellPage() {
         });
         setCustomerBakiMap(map);
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 
   function loadSales() {
     fetch('/api/sales?t=' + Date.now())
       .then((r) => r.json())
       .then((d) => setSales(d.sales || []))
-      .catch(() => {});
+      .catch(() => { });
   }
 
   // Add Product to Cart on Card Click
@@ -665,7 +665,11 @@ export default function SellPage() {
                             color: isOut ? '#dc2626' : isLow ? '#b45309' : '#15803d',
                           }}
                         >
-                          {isOut ? '০' : `${p.stockQty}`}
+                          {isOut
+                            ? '০'
+                            : p.piecesPerPacket > 1
+                              ? `${p.stockQty} টি (${Math.floor(p.stockQty / p.piecesPerPacket)} ${p.packetUnit || 'কার্টন'})`
+                              : `${p.stockQty} টি`}
                         </span>
                       </div>
                     </div>
@@ -1255,9 +1259,8 @@ export default function SellPage() {
                   </td>
                   <td>
                     <span
-                      className={`badge ${
-                        s.paymentMethod === 'bkash' ? 'blue' : s.paymentMethod === 'both' ? 'amber' : 'gray'
-                      }`}
+                      className={`badge ${s.paymentMethod === 'bkash' ? 'blue' : s.paymentMethod === 'both' ? 'amber' : 'gray'
+                        }`}
                     >
                       {s.paymentMethod === 'bkash' ? 'bKash' : s.paymentMethod === 'both' ? 'নগদ+bKash' : 'নগদ'}
                     </span>
