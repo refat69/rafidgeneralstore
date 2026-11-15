@@ -29,6 +29,31 @@ export default function SellPage() {
   const [sortBy, setSortBy] = useState('most_sold'); // 'most_sold' | 'name' | 'price_low' | 'price_high' | 'stock'
   const [customerBakiMap, setCustomerBakiMap] = useState({});
 
+  // Full product creation form (same as Stock Page)
+  const initialProductForm = {
+    name: '',
+    category: '',
+    unit: 'পিস',
+    buyPrice: '',
+    sellPrice: '',
+    stockQty: '',
+    lowStockAt: 5,
+    imageUrl: '',
+    description: '',
+    purchaseType: 'packet', // 'packet' | 'piece'
+    packetUnit: 'কার্টন',
+    packetQty: '',
+    packetBuyPrice: '',
+    piecesPerPacket: '',
+    packetSellPrice: '',
+    isExistingStock: false,
+  };
+
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [newProductForm, setNewProductForm] = useState(initialProductForm);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [productSubmitting, setProductSubmitting] = useState(false);
+
   // States for custom unregistered products
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [newProdName, setNewProdName] = useState('');
@@ -149,6 +174,245 @@ export default function SellPage() {
     setNewProdStock('');
     setShowCustomForm(false);
     toast.success('কাস্টম পণ্য কার্টে যোগ হয়েছে');
+  }
+
+  // Full Product Modal Handlers (identical to Stock page)
+  const handlePurchaseTypeChange = (type) => {
+    setNewProductForm((prev) => {
+      const isPacket = type === 'packet';
+      const pieces = Number(prev.piecesPerPacket) || 1;
+
+      if (isPacket) {
+        const pQty = prev.packetQty ? Number(prev.packetQty) : (prev.stockQty ? Math.floor(Number(prev.stockQty) / pieces) : '');
+        const pBuy = prev.packetBuyPrice ? Number(prev.packetBuyPrice) : (prev.buyPrice ? Math.round(Number(prev.buyPrice) * pieces) : '');
+        const pSell = prev.packetSellPrice ? Number(prev.packetSellPrice) : (prev.sellPrice ? Math.round(Number(prev.sellPrice) * pieces) : '');
+        return {
+          ...prev,
+          purchaseType: 'packet',
+          packetQty: pQty ? String(pQty) : '',
+          packetBuyPrice: pBuy ? String(pBuy) : '',
+          packetSellPrice: pSell ? String(pSell) : '',
+        };
+      } else {
+        return {
+          ...prev,
+          purchaseType: 'piece',
+        };
+      }
+    });
+  };
+
+  const handlePacketQtyChange = (val) => {
+    setNewProductForm((prev) => {
+      const pQty = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const totalPieces = pQty > 0 ? pQty * pieces : '';
+      return {
+        ...prev,
+        packetQty: val,
+        stockQty: totalPieces ? String(totalPieces) : '',
+      };
+    });
+  };
+
+  const handlePacketBuyPriceChange = (val) => {
+    setNewProductForm((prev) => {
+      const pBuy = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const pieceBuy = pBuy > 0 && pieces > 0 ? (pBuy / pieces).toFixed(2) : '';
+      return {
+        ...prev,
+        packetBuyPrice: val,
+        buyPrice: pieceBuy ? String(Number(pieceBuy)) : '',
+      };
+    });
+  };
+
+  const handlePiecesPerPacketChange = (val) => {
+    setNewProductForm((prev) => {
+      const pieces = Number(val) || 0;
+      const pQty = Number(prev.packetQty) || 0;
+      const pBuy = Number(prev.packetBuyPrice) || 0;
+      const pSell = Number(prev.packetSellPrice) || 0;
+
+      const totalPieces = pieces > 0 && pQty > 0 ? pieces * pQty : prev.stockQty;
+      const pieceBuy = pieces > 0 && pBuy > 0 ? (pBuy / pieces).toFixed(2) : prev.buyPrice;
+      const pieceSell = pieces > 0 && pSell > 0 ? (pSell / pieces).toFixed(2) : prev.sellPrice;
+
+      return {
+        ...prev,
+        piecesPerPacket: val,
+        stockQty: totalPieces ? String(totalPieces) : prev.stockQty,
+        buyPrice: pieceBuy ? String(Number(pieceBuy)) : prev.buyPrice,
+        sellPrice: pieceSell ? String(Number(pieceSell)) : prev.sellPrice,
+      };
+    });
+  };
+
+  const handlePieceBuyPriceChange = (val) => {
+    setNewProductForm((prev) => {
+      const pieceBuy = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const pBuy = pieceBuy > 0 && pieces > 0 ? Math.round(pieceBuy * pieces) : '';
+      return {
+        ...prev,
+        buyPrice: val,
+        packetBuyPrice: prev.purchaseType === 'packet' && pBuy ? String(pBuy) : prev.packetBuyPrice,
+      };
+    });
+  };
+
+  const handlePieceSellPriceChange = (val) => {
+    setNewProductForm((prev) => {
+      const pieceSell = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const pSell = pieceSell > 0 && pieces > 0 ? Math.round(pieceSell * pieces) : '';
+      return {
+        ...prev,
+        sellPrice: val,
+        packetSellPrice: prev.purchaseType === 'packet' && pSell ? String(pSell) : prev.packetSellPrice,
+      };
+    });
+  };
+
+  const handlePacketSellPriceChange = (val) => {
+    setNewProductForm((prev) => {
+      const pSell = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const pieceSell = pSell > 0 && pieces > 0 ? (pSell / pieces).toFixed(2) : '';
+      return {
+        ...prev,
+        packetSellPrice: val,
+        sellPrice: pieceSell ? String(Number(pieceSell)) : prev.sellPrice,
+      };
+    });
+  };
+
+  const handlePieceStockChange = (val) => {
+    setNewProductForm((prev) => {
+      const totalPieces = Number(val) || 0;
+      const pieces = Number(prev.piecesPerPacket) || 1;
+      const pQty = totalPieces > 0 && pieces > 0 ? Math.floor(totalPieces / pieces) : '';
+      return {
+        ...prev,
+        stockQty: val,
+        packetQty: pQty ? String(pQty) : '',
+      };
+    });
+  };
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Data = reader.result;
+      try {
+        const res = await fetch('/api/upload/cloudinary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64Data }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          setNewProductForm((prev) => ({ ...prev, imageUrl: data.url }));
+          toast.success('📸 ছবি আপলোড হয়েছে!');
+        } else {
+          setNewProductForm((prev) => ({ ...prev, imageUrl: base64Data }));
+          toast.success('📸 ছবি নির্বাচন করা হয়েছে');
+        }
+      } catch (err) {
+        setNewProductForm((prev) => ({ ...prev, imageUrl: base64Data }));
+        toast.error('আপলোডে সমস্যা, লোকাল প্রিভিউ সেভ করা হচ্ছে');
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleCreateProductSubmit(e) {
+    e.preventDefault();
+    if (!newProductForm.name || !newProductForm.name.trim()) {
+      toast.error('পণ্যের নাম আবশ্যক');
+      return;
+    }
+    if (!newProductForm.sellPrice || Number(newProductForm.sellPrice) < 0) {
+      toast.error('সঠিক বিক্রির দাম লিখুন');
+      return;
+    }
+
+    setProductSubmitting(true);
+    const payload = {
+      name: newProductForm.name.trim(),
+      category: newProductForm.category || 'সাধারণ',
+      unit: newProductForm.unit || 'পিস',
+      buyPrice: Number(newProductForm.buyPrice) || 0,
+      sellPrice: Number(newProductForm.sellPrice) || 0,
+      stockQty: Number(newProductForm.stockQty) || 0,
+      lowStockAt: Number(newProductForm.lowStockAt) || 5,
+      imageUrl: newProductForm.imageUrl || '',
+      description: newProductForm.description || '',
+      purchaseType: newProductForm.purchaseType || 'packet',
+      packetUnit: newProductForm.packetUnit || 'কার্টন',
+      piecesPerPacket: Number(newProductForm.piecesPerPacket) || 1,
+      packetBuyPrice: Number(newProductForm.packetBuyPrice) || 0,
+      packetSellPrice: Number(newProductForm.packetSellPrice) || 0,
+      isExistingStock: Boolean(newProductForm.isExistingStock),
+    };
+
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    setProductSubmitting(false);
+
+    if (!res.ok) {
+      toast.error(data.error || 'পণ্য সংরক্ষণ করতে সমস্যা হয়েছে');
+      return;
+    }
+
+    const createdProd = data.product;
+    toast.success('✅ নতুন পণ্য সংরক্ষিত হয়েছে এবং কার্টে যুক্ত করা হয়েছে!');
+
+    // Reset new product form
+    setNewProductForm(initialProductForm);
+    setShowProductModal(false);
+
+    // Refresh products list
+    loadProducts();
+
+    // Auto-add this newly created product to cart!
+    if (createdProd) {
+      setCart((prev) => {
+        const ex = prev.find((c) => c.productId === createdProd._id);
+        if (ex) {
+          return prev.map((c) =>
+            c.productId === createdProd._id
+              ? { ...c, qty: c.qty + 1, total: (c.qty + 1) * c.price }
+              : c
+          );
+        }
+        return [
+          ...prev,
+          {
+            productId: createdProd._id,
+            name: createdProd.name,
+            price: createdProd.sellPrice,
+            buyPrice: createdProd.buyPrice,
+            qty: 1,
+            maxQty: createdProd.stockQty || 999999,
+            total: createdProd.sellPrice,
+            imageUrl: createdProd.imageUrl,
+            unit: createdProd.unit || 'পিস',
+          },
+        ];
+      });
+    }
   }
 
   function updateQty(id, qty) {
@@ -330,7 +594,17 @@ export default function SellPage() {
           <h2>🛒 পয়েন্ট অব সেল (বিক্রি পেজ)</h2>
           <div className="sub">পণ্য নির্বাচন করুন এবং সহজে পরবর্তী ধাপে গিয়ে বিক্রি সম্পন্ন করুন</div>
         </div>
-        <div className="flex" style={{ gap: 10 }}>
+        <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn green"
+            onClick={() => {
+              setNewProductForm(initialProductForm);
+              setShowProductModal(true);
+            }}
+          >
+            ➕ নতুন পণ্য যোগ করুন
+          </button>
           <Link href="/admin/sales-history" className="btn gray">
             📜 বিক্রির ইতিহাস ➔
           </Link>
@@ -691,16 +965,29 @@ export default function SellPage() {
               )}
             </div>
 
-            {/* Custom Product Quick Add Accordion */}
+            {/* New Product Add Button (Full stock options + quick custom fallback) */}
             <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed var(--border)' }}>
-              <button
-                type="button"
-                className="btn sm gray"
-                style={{ width: '100%', fontSize: 12.5 }}
-                onClick={() => setShowCustomForm(!showCustomForm)}
-              >
-                {showCustomForm ? '▲ কাস্টম পণ্য ফর্ম বন্ধ করুন' : '➕ তালিকায় নেই এমন পণ্য দ্রুত যোগ করুন'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <button
+                  type="button"
+                  className="btn green"
+                  style={{ flex: 1, minWidth: 200, fontSize: 13, padding: '9px 14px' }}
+                  onClick={() => {
+                    setNewProductForm(initialProductForm);
+                    setShowProductModal(true);
+                  }}
+                >
+                  ➕ নতুন পণ্য যোগ করুন (স্টক পেজের মতো সম্পূর্ণ অপশন)
+                </button>
+                <button
+                  type="button"
+                  className="btn sm gray"
+                  style={{ fontSize: 12 }}
+                  onClick={() => setShowCustomForm(!showCustomForm)}
+                >
+                  {showCustomForm ? '▲ কাস্টম ফর্ম বন্ধ' : '⚡ অনিবন্ধিত দ্রুত পণ্য'}
+                </button>
+              </div>
 
               {showCustomForm && (
                 <div
@@ -1283,6 +1570,440 @@ export default function SellPage() {
           </table>
         </div>
       </div>
+
+      {/* Complete Product Creation Modal (with all Stock Page Options) */}
+      {showProductModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowProductModal(false);
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: '100%',
+              maxWidth: 620,
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              background: '#ffffff',
+              borderRadius: 14,
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              padding: '20px 22px',
+            }}
+          >
+            <div className="flex between align-center mb8" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, color: '#0f172a' }}>
+                  ➕ নতুন পণ্য যোগ করুন ও সরাসরি কার্টে নিন
+                </h3>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  স্টক পেজের মতো কার্টন/পিস ও বর্তমান/আগের স্টক হিসাব সহ
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn sm text gray"
+                style={{ fontSize: 18, padding: '4px 8px' }}
+                onClick={() => setShowProductModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form className="form-grid two mt8" onSubmit={handleCreateProductSubmit}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>পণ্যের নাম *</label>
+                <input
+                  value={newProductForm.name}
+                  onChange={(e) => setNewProductForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                  placeholder="যেমন: এনার্জি বিস্কুট, মিনি টোস্ট, চিনি..."
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label>ক্যাটাগরি</label>
+                <input
+                  value={newProductForm.category}
+                  onChange={(e) => setNewProductForm((prev) => ({ ...prev, category: e.target.value }))}
+                  placeholder="যেমন: বিস্কুট ও বেকারি, মুদি..."
+                />
+              </div>
+
+              <div>
+                <label>একক (Unit)</label>
+                <select
+                  value={newProductForm.unit}
+                  onChange={(e) => setNewProductForm((prev) => ({ ...prev, unit: e.target.value }))}
+                >
+                  <option value="পিস">পিস (Piece)</option>
+                  <option value="কেজি">কেজি (Kg)</option>
+                  <option value="গ্রাম">গ্রাম (gm)</option>
+                  <option value="লিটার">লিটার (Liter)</option>
+                  <option value="মিলি">মিলি (ml)</option>
+                  <option value="প্যাকেট">প্যাকেট (Packet)</option>
+                </select>
+              </div>
+
+              {/* 1. হিসাবের ধরণ নির্বাচন: প্যাকেট / কার্টন বনাম পিস */}
+              <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+                <label style={{ fontWeight: 'bold', marginBottom: 6, display: 'block', fontSize: 13.5 }}>
+                  ১. হিসাবের ধরণ নির্বাচন করুন: *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => handlePurchaseTypeChange('packet')}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: newProductForm.purchaseType === 'packet' ? '2px solid #2563eb' : '1px solid var(--border)',
+                      background: newProductForm.purchaseType === 'packet' ? '#eff6ff' : '#ffffff',
+                      color: newProductForm.purchaseType === 'packet' ? '#1d4ed8' : 'var(--text)',
+                      fontWeight: 'bold',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 16, marginBottom: 2 }}>📦</div>
+                    ১. প্যাকেট / কার্টন হিসেবে
+                    <div style={{ fontSize: 11, fontWeight: 'normal', color: newProductForm.purchaseType === 'packet' ? '#2563eb' : 'var(--muted)', marginTop: 2 }}>
+                      (কার্টনের দাম দিলে পিস দাম অটো বের হবে)
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePurchaseTypeChange('piece')}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: newProductForm.purchaseType === 'piece' ? '2px solid #16a34a' : '1px solid var(--border)',
+                      background: newProductForm.purchaseType === 'piece' ? '#f0fdf4' : '#ffffff',
+                      color: newProductForm.purchaseType === 'piece' ? '#166534' : 'var(--text)',
+                      fontWeight: 'bold',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 16, marginBottom: 2 }}>🛍️</div>
+                    ২. সরাসরি পিস / একক হিসেবে
+                    <div style={{ fontSize: 11, fontWeight: 'normal', color: newProductForm.purchaseType === 'piece' ? '#166534' : 'var(--muted)', marginTop: 2 }}>
+                      (সরাসরি প্রতি পিসের কেনা ও বিক্রির দাম)
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. স্টকের ধরণ নির্বাচন: বর্তমান স্টক বনাম আগের স্টক */}
+              <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+                <label style={{ fontWeight: 'bold', marginBottom: 6, display: 'block', fontSize: 13.5, color: '#0f172a' }}>
+                  ২. স্টকের ধরণ নির্বাচন করুন (ক্যাশ বক্স হিসাব): *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewProductForm((prev) => ({ ...prev, isExistingStock: false }))}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: !newProductForm.isExistingStock ? '2px solid #16a34a' : '1px solid var(--border)',
+                      background: !newProductForm.isExistingStock ? '#f0fdf4' : '#ffffff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <b style={{ color: '#15803d', fontSize: 13.5 }}>🟢 ১. বর্তমান স্টক</b>
+                      {!newProductForm.isExistingStock && <span style={{ color: '#16a34a' }}>✔</span>}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#dc2626', marginTop: 2, fontWeight: '600' }}>
+                      • ক্যাশবাক্স থেকে টাকা কাটবে (−)
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewProductForm((prev) => ({ ...prev, isExistingStock: true }))}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: newProductForm.isExistingStock ? '2px solid #2563eb' : '1px solid var(--border)',
+                      background: newProductForm.isExistingStock ? '#eff6ff' : '#ffffff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <b style={{ color: '#1d4ed8', fontSize: 13.5 }}>🏷️ ২. আগের স্টক</b>
+                      {newProductForm.isExistingStock && <span style={{ color: '#2563eb' }}>✔</span>}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#16a34a', marginTop: 2, fontWeight: '600' }}>
+                      • ক্যাশবাক্স থেকে কাটবে না (৳০)
+                    </div>
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    fontSize: 11.5,
+                    background: newProductForm.isExistingStock ? '#eff6ff' : '#fef2f2',
+                    border: `1px solid ${newProductForm.isExistingStock ? '#bfdbfe' : '#fecaca'}`,
+                    color: newProductForm.isExistingStock ? '#1e40af' : '#991b1b',
+                  }}
+                >
+                  {newProductForm.isExistingStock
+                    ? '✓ আগের স্টক সিলেক্ট করা: ক্যাশবাক্স বা মূলধন থেকে কোনো টাকা কাটা হবে না।'
+                    : '✓ বর্তমান স্টক সিলেক্ট করা: নতুন মাল কেনার খরচ হিসেবে ক্যাশবাক্স থেকে টাকা বিয়োগ হবে।'}
+                </div>
+              </div>
+
+              {/* Dynamic Inputs based on purchaseType */}
+              {newProductForm.purchaseType === 'packet' ? (
+                <>
+                  <div>
+                    <label>প্যাকেটের একক</label>
+                    <select
+                      value={newProductForm.packetUnit}
+                      onChange={(e) => setNewProductForm((prev) => ({ ...prev, packetUnit: e.target.value }))}
+                    >
+                      <option value="কার্টন">কার্টন (Carton)</option>
+                      <option value="প্যাকেট">প্যাকেট (Packet)</option>
+                      <option value="বক্স">বক্স (Box)</option>
+                      <option value="ডজন">ডজন (Dozen)</option>
+                      <option value="বস্তা">বস্তা (Sack)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label>কয়টি {newProductForm.packetUnit || 'কার্টন'} কিনেছেন?</label>
+                    <input
+                      type="number"
+                      value={newProductForm.packetQty}
+                      onChange={(e) => handlePacketQtyChange(e.target.value)}
+                      placeholder="যেমন: ১ বা ৫"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold' }}>প্রতি {newProductForm.packetUnit || 'কার্টনের'} কেনার দাম (৳) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.packetBuyPrice}
+                      onChange={(e) => handlePacketBuyPriceChange(e.target.value)}
+                      placeholder="যেমন: ৬০০"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold' }}>প্রতি {newProductForm.packetUnit || 'কার্টনে'} কত পিস থাকে? *</label>
+                    <input
+                      type="number"
+                      value={newProductForm.piecesPerPacket}
+                      onChange={(e) => handlePiecesPerPacketChange(e.target.value)}
+                      placeholder="যেমন: ২৪ বা ১২"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ color: '#2563eb', fontWeight: 'bold' }}>১ পিসের কেনার দাম (৳) [অটো বের হয়েছে]</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.buyPrice}
+                      onChange={(e) => handlePieceBuyPriceChange(e.target.value)}
+                      placeholder="যেমন: ২৫"
+                      style={{ background: '#f8fafc' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ color: '#16a34a', fontWeight: 'bold' }}>১ পিসের বিক্রির দাম (৳) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.sellPrice}
+                      onChange={(e) => handlePieceSellPriceChange(e.target.value)}
+                      placeholder="যেমন: ৩০"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label>পুরো {newProductForm.packetUnit || 'কার্টন'} বিক্রির দাম (৳) [ঐচ্ছিক]</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.packetSellPrice}
+                      onChange={(e) => handlePacketSellPriceChange(e.target.value)}
+                      placeholder="যেমন: ৭২০"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold', color: '#15803d' }}>মোট স্টক সংখ্যা (পিস)</label>
+                    <input
+                      type="number"
+                      value={newProductForm.stockQty}
+                      onChange={(e) => handlePieceStockChange(e.target.value)}
+                      placeholder="মোট পিস সংখ্যা"
+                      style={{ background: '#f0fdf4', fontWeight: 'bold' }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label>১ পিসের কেনার দাম (৳)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.buyPrice}
+                      onChange={(e) => setNewProductForm((prev) => ({ ...prev, buyPrice: e.target.value }))}
+                      placeholder="যেমন: ৫০"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold' }}>১ পিসের বিক্রির দাম (৳) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newProductForm.sellPrice}
+                      onChange={(e) => setNewProductForm((prev) => ({ ...prev, sellPrice: e.target.value }))}
+                      placeholder="যেমন: ৬০"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold' }}>বর্তমান স্টক সংখ্যা ({newProductForm.unit || 'পিস'})</label>
+                    <input
+                      type="number"
+                      value={newProductForm.stockQty}
+                      onChange={(e) => setNewProductForm((prev) => ({ ...prev, stockQty: e.target.value }))}
+                      placeholder="যেমন: ১০০"
+                    />
+                  </div>
+
+                  <div>
+                    <label>কম স্টক অ্যালার্ট লেভেল</label>
+                    <input
+                      type="number"
+                      value={newProductForm.lowStockAt}
+                      onChange={(e) => setNewProductForm((prev) => ({ ...prev, lowStockAt: e.target.value }))}
+                      placeholder="৫"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Photo Upload */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label>পণ্যের ছবি (ঐচ্ছিক)</label>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploadingImage}
+                    style={{ flex: 1 }}
+                  />
+                  {uploadingImage && <span className="muted" style={{ fontSize: 12 }}>আপলোড হচ্ছে...</span>}
+                </div>
+                {newProductForm.imageUrl && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img
+                      src={newProductForm.imageUrl}
+                      alt="Product"
+                      style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn sm text red"
+                      onClick={() => setNewProductForm((prev) => ({ ...prev, imageUrl: '' }))}
+                    >
+                      ছবি মুছুন
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Live Accounting Summary Card */}
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  background: '#f8fafc',
+                  border: '1px solid var(--border)',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  lineHeight: 1.6,
+                }}
+              >
+                <b>📊 লাভ ও ক্যাশ হিসাব সারসংক্ষেপ:</b>
+                <div>
+                  • প্রতি পিসে লাভ: <b style={{ color: '#16a34a' }}>
+                    {newProductForm.sellPrice && newProductForm.buyPrice
+                      ? taka(Number(newProductForm.sellPrice) - Number(newProductForm.buyPrice))
+                      : '—'}
+                  </b>
+                  {newProductForm.sellPrice && newProductForm.buyPrice && Number(newProductForm.buyPrice) > 0 && (
+                    <span style={{ fontSize: 11, color: '#059669', marginLeft: 6 }}>
+                      ({(((Number(newProductForm.sellPrice) - Number(newProductForm.buyPrice)) / Number(newProductForm.buyPrice)) * 100).toFixed(1)}% মার্জিন)
+                    </span>
+                  )}
+                </div>
+                <div>
+                  • ক্যাশবাক্স থেকে কাটা হবে: <b style={{ color: newProductForm.isExistingStock ? '#16a34a' : '#dc2626' }}>
+                    {newProductForm.isExistingStock
+                      ? '৳০ (আগের স্টক - ক্যাশ কাটবে না)'
+                      : taka((Number(newProductForm.stockQty) || 0) * (Number(newProductForm.buyPrice) || 0))}
+                  </b>
+                </div>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="btn gray"
+                  style={{ flex: 1 }}
+                  onClick={() => setShowProductModal(false)}
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="btn green"
+                  style={{ flex: 2, fontWeight: 'bold' }}
+                  disabled={productSubmitting}
+                >
+                  {productSubmitting ? 'সংরক্ষণ হচ্ছে...' : '✅ পণ্য সংরক্ষণ ও কার্টে যোগ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

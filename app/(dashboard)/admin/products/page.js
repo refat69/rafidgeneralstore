@@ -486,47 +486,88 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Existing Stock vs Cash Purchase Toggle */}
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                background: form.isExistingStock ? '#f8fafc' : '#f0fdf4',
-                border: form.isExistingStock ? '1px solid #cbd5e1' : '1px solid #86efac',
-                borderRadius: 8,
-                padding: '10px 14px',
-                marginTop: 4,
-                marginBottom: 6,
-              }}
-            >
-              <label
+            {/* 2 Clear Options: বর্তমান স্টক vs আগের স্টক */}
+            <div style={{ gridColumn: '1 / -1', marginTop: 4, marginBottom: 8 }}>
+              <label style={{ fontWeight: 'bold', marginBottom: 6, display: 'block', fontSize: 13.5, color: '#0f172a' }}>
+                স্টকের ধরণ নির্বাচন করুন (ক্যাশ বক্স হিসাব): *
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>
+                {/* Option 1: বর্তমান স্টক */}
+                <button
+                  type="button"
+                  onClick={() => set({ isExistingStock: false })}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: !form.isExistingStock ? '2px solid #16a34a' : '1px solid var(--border)',
+                    background: !form.isExistingStock ? '#f0fdf4' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    boxShadow: !form.isExistingStock ? '0 2px 8px rgba(22,163,74,0.15)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <b style={{ color: '#15803d', fontSize: 14 }}>🟢 ১. বর্তমান স্টক</b>
+                    {!form.isExistingStock && <span style={{ color: '#16a34a', fontSize: 16 }}>✔</span>}
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 'bold', color: '#166534' }}>
+                    (আজকের নতুন কেনা মাল)
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#dc2626', marginTop: 4, fontWeight: '600' }}>
+                    • ক্যাশবাক্স থেকে টাকা কাটবে (−)
+                  </div>
+                </button>
+
+                {/* Option 2: আগের স্টক */}
+                <button
+                  type="button"
+                  onClick={() => set({ isExistingStock: true })}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: form.isExistingStock ? '2px solid #2563eb' : '1px solid var(--border)',
+                    background: form.isExistingStock ? '#eff6ff' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    boxShadow: form.isExistingStock ? '0 2px 8px rgba(37,99,235,0.15)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <b style={{ color: '#1d4ed8', fontSize: 14 }}>🏷️ ২. আগের স্টক</b>
+                    {form.isExistingStock && <span style={{ color: '#2563eb', fontSize: 16 }}>✔</span>}
+                  </div>
+                  <div style={{ fontSize: 12.5, fontWeight: 'bold', color: '#1e40af' }}>
+                    (আগের কেনা / সংরক্ষিত মাল)
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#16a34a', marginTop: 4, fontWeight: '600' }}>
+                    • ক্যাশবাক্স থেকে টাকা কাটবে না (৳০)
+                  </div>
+                </button>
+              </div>
+
+              {/* Live Info Alert */}
+              <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  cursor: 'pointer',
-                  margin: 0,
-                  fontSize: 13.5,
-                  fontWeight: 'bold',
-                  color: form.isExistingStock ? '#334155' : '#15803d',
+                  marginTop: 8,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  background: form.isExistingStock ? '#eff6ff' : '#fef2f2',
+                  border: `1px solid ${form.isExistingStock ? '#bfdbfe' : '#fecaca'}`,
+                  color: form.isExistingStock ? '#1e40af' : '#991b1b',
+                  lineHeight: 1.5,
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={form.isExistingStock}
-                  onChange={(e) => set({ isExistingStock: e.target.checked })}
-                  style={{ width: 18, height: 18, accentColor: '#16a34a' }}
-                />
-                <span>🏷️ এটি আগের স্টক (ক্যাশবাক্স বা বাড়ি থেকে আনা ক্যাশ থেকে টাকা কমবে না)</span>
-              </label>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, paddingLeft: 28, lineHeight: 1.5 }}>
                 {form.isExistingStock ? (
-                  <span style={{ color: '#059669', fontWeight: '600' }}>
-                    ✓ টিক দেওয়া হয়েছে: এটি দোকানের আগের/পুরাতন স্টক, তাই ক্যাশবাক্স বা বাড়ি থেকে আনা ক্যাশ থেকে কোনো টাকা কাটা হবে না।
-                  </span>
+                  <>
+                    ✓ <b>আগের স্টক সিলেক্ট করা আছে:</b> পণ্য ও স্টকের সংখ্যা বাড়বে, কিন্তু ক্যাশবাক্স বা বাড়ি থেকে আনা ক্যাশ থেকে <b>কোনো টাকা কাটবে না</b>।
+                  </>
                 ) : (
-                  <span>
-                    💡 টিক না থাকলে: এটি আজকের নতুন মাল কেনা হিসেবে গণ্য হবে এবং ক্যাশবাক্স থেকে মোট কেনার দাম বিয়োগ হবে।
-                  </span>
+                  <>
+                    ✓ <b>বর্তমান স্টক সিলেক্ট করা আছে:</b> এটি আজকের নতুন কেনা মাল হিসেবে গণ্য হবে এবং <b>ক্যাশবাক্স থেকে টাকা বিয়োগ (−) হবে</b>।
+                  </>
                 )}
               </div>
             </div>
@@ -1136,36 +1177,70 @@ export default function ProductsPage() {
                 </div>
               )}
 
-              <div
-                style={{
-                  gridColumn: '1 / -1',
-                  background: addStockIsExisting ? '#f8fafc' : '#f0fdf4',
-                  border: addStockIsExisting ? '1px solid #cbd5e1' : '1px solid #86efac',
-                  borderRadius: 6,
-                  padding: '8px 12px',
-                  marginTop: 4,
-                }}
-              >
-                <label
+              {/* 2 Clear Options: বর্তমান স্টক vs আগের স্টক */}
+              <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+                <label style={{ fontWeight: 'bold', marginBottom: 6, display: 'block', fontSize: 13, color: '#0f172a' }}>
+                  স্টকের ধরণ নির্বাচন করুন (ক্যাশ হিসাব): *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setAddStockIsExisting(false)}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: !addStockIsExisting ? '2px solid #16a34a' : '1px solid var(--border)',
+                      background: !addStockIsExisting ? '#f0fdf4' : '#ffffff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: !addStockIsExisting ? '0 2px 6px rgba(22,163,74,0.12)' : 'none',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: 13, color: '#15803d' }}>
+                      🟢 ১. বর্তমান স্টক
+                    </div>
+                    <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2, fontWeight: '600' }}>
+                      ক্যাশ বক্স থেকে টাকা কাটবে (−)
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAddStockIsExisting(true)}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: addStockIsExisting ? '2px solid #2563eb' : '1px solid var(--border)',
+                      background: addStockIsExisting ? '#eff6ff' : '#ffffff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: addStockIsExisting ? '0 2px 6px rgba(37,99,235,0.12)' : 'none',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: 13, color: '#1d4ed8' }}>
+                      🏷️ ২. আগের স্টক
+                    </div>
+                    <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2, fontWeight: '600' }}>
+                      ক্যাশ বক্স থেকে কাটবে না (৳০)
+                    </div>
+                  </button>
+                </div>
+
+                <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    cursor: 'pointer',
-                    margin: 0,
-                    fontSize: 12.5,
-                    fontWeight: 'bold',
-                    color: addStockIsExisting ? '#334155' : '#15803d',
+                    marginTop: 6,
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    fontSize: 11.5,
+                    background: addStockIsExisting ? '#eff6ff' : '#fef2f2',
+                    border: `1px solid ${addStockIsExisting ? '#bfdbfe' : '#fecaca'}`,
+                    color: addStockIsExisting ? '#1e40af' : '#991b1b',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={addStockIsExisting}
-                    onChange={(e) => setAddStockIsExisting(e.target.checked)}
-                    style={{ width: 16, height: 16, accentColor: '#16a34a' }}
-                  />
-                  <span>🏷️ এটি আগের স্টক (ক্যাশবাক্স থেকে টাকা কমবে না)</span>
-                </label>
+                  {addStockIsExisting
+                    ? '✓ আগের স্টক: ক্যাশবাক্স থেকে কোনো টাকা কাটা হবে না।'
+                    : '✓ বর্তমান স্টক: নতুন মাল কেনার খরচ হিসেবে ক্যাশবাক্স থেকে টাকা বিয়োগ হবে।'}
+                </div>
               </div>
 
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8 }}>
