@@ -96,10 +96,11 @@ export async function GET() {
     .filter((t) => t.type === 'bundle_expense' && t.paymentSource === 'cash' && new Date(t.date) >= startOfToday)
     .reduce((a, t) => a + t.amount, 0);
 
-  // Stock / Goods Purchases Cash (নতুন মাল কেনার নগদ খরচ)
-  const stockPurchaseCash = stockLogs.reduce((a, l) => a + (l.qtyAdded * l.buyPrice), 0);
+  // Stock / Goods Purchases Cash (নতুন মাল কেনার নগদ খরচ - পূর্বের/আগের স্টকে ক্যাশ কমবে না)
+  const isCashStock = (l) => !l.isExistingStock && l.paidFromCash !== false && l.source !== 'existing_stock';
+  const stockPurchaseCash = stockLogs.filter(isCashStock).reduce((a, l) => a + (l.qtyAdded * l.buyPrice), 0);
   const todayStockPurchaseCash = stockLogs
-    .filter((l) => new Date(l.date) >= startOfToday)
+    .filter((l) => isCashStock(l) && new Date(l.date) >= startOfToday)
     .reduce((a, l) => a + (l.qtyAdded * l.buyPrice), 0);
 
   // Daily shop expenses in cash (দোকানের নগদ খরচ)

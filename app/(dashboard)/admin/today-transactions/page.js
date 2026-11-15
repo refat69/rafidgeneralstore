@@ -41,8 +41,9 @@ export default function TodayTransactionsPage() {
 
   const todayExpensesAmt = expenses.reduce((a, e) => a + e.amount, 0);
 
-  // Today's Purchases total
-  const todayStockAddedAmt = stockLogs.reduce((a, log) => a + (log.qtyAdded * log.buyPrice), 0);
+  // Today's Purchases total (আগের স্টক ক্যাশ থেকে বাদ যাবে না)
+  const isCashStock = (l) => !l.isExistingStock && l.paidFromCash !== false && l.source !== 'existing_stock';
+  const todayStockAddedAmt = stockLogs.filter(isCashStock).reduce((a, log) => a + (log.qtyAdded * log.buyPrice), 0);
 
   // Today's Capital from home
   const todayCapitalFromHome = cashTransactions
@@ -184,14 +185,29 @@ export default function TodayTransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {stockLogs.map((log) => (
-                  <tr key={log._id}>
-                    <td><b>{log.productName}</b></td>
-                    <td>{log.qtyAdded} পিস</td>
-                    <td>{taka(log.buyPrice)}</td>
-                    <td><b>{taka(log.qtyAdded * log.buyPrice)}</b></td>
-                  </tr>
-                ))}
+                {stockLogs.map((log) => {
+                  const isExisting = log.isExistingStock || log.source === 'existing_stock' || log.paidFromCash === false;
+                  return (
+                    <tr key={log._id}>
+                      <td>
+                        <b>{log.productName}</b>
+                        {isExisting && (
+                          <span className="badge gray" style={{ fontSize: 10, marginLeft: 6 }}>
+                            🏷️ আগের স্টক (ক্যাশ কাটেনি)
+                          </span>
+                        )}
+                      </td>
+                      <td>{log.qtyAdded} পিস</td>
+                      <td>{taka(log.buyPrice)}</td>
+                      <td>
+                        <b>{taka(log.qtyAdded * log.buyPrice)}</b>
+                        {isExisting && (
+                          <div style={{ fontSize: 10, color: 'var(--muted)' }}>ক্যাশ থেকে কমেনি</div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {stockLogs.length === 0 && <tr><td colSpan={4} className="empty">আজ কোনো নতুন মাল কেনা হয়নি</td></tr>}
               </tbody>
             </table>

@@ -78,10 +78,11 @@ export async function GET() {
   const stockValue = products.reduce((a, p) => a + p.stockQty * p.buyPrice, 0);
   const lowStock = products.filter((p) => p.stockQty <= p.lowStockAt);
 
-  // Today's Stock Added
+  // Today's Stock Added (excluding existing/opening stock from cash reduction)
   const stockLogs = await StockLog.find().lean();
+  const isCashStock = (l) => !l.isExistingStock && l.paidFromCash !== false && l.source !== 'existing_stock';
   const todayStockLogs = stockLogs.filter((log) => new Date(log.date) >= startOfToday);
-  const todayStockAdded = todayStockLogs.reduce((a, log) => a + (log.qtyAdded * log.buyPrice), 0);
+  const todayStockAdded = todayStockLogs.filter(isCashStock).reduce((a, log) => a + (log.qtyAdded * log.buyPrice), 0);
 
   // Baki
   const bakiAll = await Baki.find().lean();
@@ -120,7 +121,7 @@ export async function GET() {
   const bundleCashOut = bkashAll
     .filter((t) => t.type === 'bundle_expense' && t.paymentSource === 'cash')
     .reduce((a, t) => a + t.amount, 0);
-  const stockPurchaseCash = stockLogs.reduce((a, l) => a + (l.qtyAdded * l.buyPrice), 0);
+  const stockPurchaseCash = stockLogs.filter(isCashStock).reduce((a, l) => a + (l.qtyAdded * l.buyPrice), 0);
   const expensesCash = expenses
     .filter((e) => e.paymentMethod === 'cash')
     .reduce((a, e) => a + e.amount, 0);

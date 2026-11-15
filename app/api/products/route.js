@@ -46,6 +46,9 @@ export async function POST(req) {
     return NextResponse.json({ error: 'এই পণ্যটি ইতিমধ্যে যুক্ত করা আছে!' }, { status: 400 });
   }
 
+  const isExistingStock = Boolean(body.isExistingStock);
+  const paidFromCash = isExistingStock ? false : (body.paidFromCash !== false);
+
   const p = await Product.create({
     name: body.name.trim(),
     category: body.category || 'সাধারণ',
@@ -61,6 +64,8 @@ export async function POST(req) {
     piecesPerPacket: Number(body.piecesPerPacket) || 1,
     packetBuyPrice: Number(body.packetBuyPrice) || 0,
     packetSellPrice: Number(body.packetSellPrice) || 0,
+    isExistingStock,
+    paidFromCash,
   });
   if (p.stockQty > 0) {
     await StockLog.create({
@@ -68,6 +73,9 @@ export async function POST(req) {
       productName: p.name,
       qtyAdded: p.stockQty,
       buyPrice: p.buyPrice,
+      isExistingStock,
+      paidFromCash,
+      source: isExistingStock ? 'existing_stock' : 'new_purchase',
     });
   }
   return NextResponse.json({ product: p }, { status: 201 });
@@ -78,6 +86,9 @@ export async function PUT(req) {
   await connectDB();
   const body = await req.json();
   const oldProduct = await Product.findById(body.id);
+  const isExistingStock = Boolean(body.isExistingStock);
+  const paidFromCash = isExistingStock ? false : (body.paidFromCash !== false);
+
   const p = await Product.findByIdAndUpdate(
     body.id,
     {
@@ -95,6 +106,8 @@ export async function PUT(req) {
       piecesPerPacket: Number(body.piecesPerPacket) || 1,
       packetBuyPrice: Number(body.packetBuyPrice) || 0,
       packetSellPrice: Number(body.packetSellPrice) || 0,
+      isExistingStock,
+      paidFromCash,
     },
     { new: true }
   );
@@ -106,6 +119,9 @@ export async function PUT(req) {
         productName: p.name,
         qtyAdded: diff,
         buyPrice: p.buyPrice,
+        isExistingStock,
+        paidFromCash,
+        source: isExistingStock ? 'existing_stock' : 'new_purchase',
       });
     }
   }
