@@ -69,22 +69,22 @@ export async function GET() {
     .filter((r) => new Date(r.date) >= startOfToday)
     .reduce((a, r) => a + (r.amount || 0), 0);
 
-  // bKash Cash In Received (কাস্টমার থেকে নগদ ক্যাশ গ্রহণ - ক্যাশইন / সেন্ডমানি বা নিজের সিম ক্যাশআউট)
+  // bKash Cash In Received (কাস্টমার থেকে নগদ ক্যাশ গ্রহণ - ক্যাশইন / সেন্ডমানি বা নিজের সিম ক্যাশআউট বা B2B ক্যাশ নেওয়া)
   const bkashCashIn = bkash
-    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out'].includes(t.type))
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out', 'b2b_cash_in'].includes(t.type))
     .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || t.amount)), 0);
 
   const todayBkashCashIn = bkash
-    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out'].includes(t.type) && new Date(t.date) >= startOfToday)
+    .filter((t) => ['cust_cashin', 'agent_cashin', 'self_cashout', 'balance_out', 'b2b_cash_in'].includes(t.type) && new Date(t.date) >= startOfToday)
     .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || t.amount)), 0);
 
-  // bKash Cash Out Given (কাস্টমারকে নগদ ক্যাশ প্রদান - ক্যাশআউট)
+  // bKash Cash Out Given (কাস্টমারকে নগদ ক্যাশ প্রদান - ক্যাশআউট বা B2B ক্যাশ দেওয়া)
   const bkashCashOut = bkash
-    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in'].includes(t.type))
+    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in', 'b2b_cash_out'].includes(t.type))
     .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || (t.amount - (t.profit || 0)))), 0);
 
   const todayBkashCashOut = bkash
-    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in'].includes(t.type) && new Date(t.date) >= startOfToday)
+    .filter((t) => ['cust_cashout', 'agent_cashout', 'balance_in', 'b2b_cash_out'].includes(t.type) && new Date(t.date) >= startOfToday)
     .reduce((a, t) => a + (typeof t.cashAmount === 'number' ? t.cashAmount : (t.cashAmount || (t.amount - (t.profit || 0)))), 0);
 
   // bKash Bundle purchased with cash

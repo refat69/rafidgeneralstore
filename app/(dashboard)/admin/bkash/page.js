@@ -59,6 +59,15 @@ export default function BkashPage() {
   const [agentCommAmount, setAgentCommAmount] = useState('');
   const [agentDesc, setAgentDesc] = useState('');
 
+  // B2B Cash Exchange States (Free: 0 profit, 0 loss)
+  // 'in' = B2B ক্যাশ নিলাম (ক্যাশ ড্রয়ারে জমা, সিম থেকে ব্যালেন্স কাটা)
+  // 'out' = B2B ক্যাশ দিলাম (ক্যাশ ড্রয়ার থেকে দেওয়া, সিমে ব্যালেন্স যোগ)
+  const [b2bFlow, setB2bFlow] = useState('in');
+  const [b2bAccountId, setB2bAccountId] = useState('');
+  const [b2bAmount, setB2bAmount] = useState('');
+  const [b2bPartnerName, setB2bPartnerName] = useState('');
+  const [b2bDesc, setB2bDesc] = useState('');
+
   // Bundle Expense States
   const [bundleAccountId, setBundleAccountId] = useState('');
   const [bundleAmount, setBundleAmount] = useState('');
@@ -393,6 +402,57 @@ export default function BkashPage() {
     loadData();
   }
 
+  // Submit B2B Cash Exchange (Free: 0 profit, 0 loss)
+  async function submitB2bTx(e) {
+    e.preventDefault();
+    const amt = Number(b2bAmount);
+    if (!amt || amt <= 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
+      return;
+    }
+    const accId = b2bAccountId || selectedAccountId;
+    const targetAcc = accounts.find((a) => a._id === accId);
+    if (!targetAcc) {
+      toast.error('বিকাশ নম্বর নির্বাচন করুন');
+      return;
+    }
+
+    const isTakeCash = b2bFlow === 'in';
+    const txType = isTakeCash ? 'b2b_cash_in' : 'b2b_cash_out';
+
+    setLoading(true);
+    const res = await fetch('/api/bkash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bkashType: 'b2b',
+        accountId: targetAcc._id,
+        accountNumber: targetAcc.number,
+        type: txType,
+        description:
+          b2bDesc.trim() ||
+          (isTakeCash
+            ? `B2B ক্যাশ গ্রহণ${b2bPartnerName ? ` [${b2bPartnerName}]` : ''} (ক্যাশ জমা +${taka(amt)}, ব্যালেন্স কাটা -${taka(amt)}, ফ্রি)`
+            : `B2B ক্যাশ প্রদান${b2bPartnerName ? ` [${b2bPartnerName}]` : ''} (ক্যাশ দেওয়া -${taka(amt)}, ব্যালেন্স যোগ +${taka(amt)}, ফ্রি)`),
+        amount: amt,
+        cashAmount: amt,
+        customerCharge: 0,
+        profit: 0, // 0 profit, 0 loss! FREE!
+        ref: b2bPartnerName.trim(),
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('B2B লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success(isTakeCash ? '✅ B2B ক্যাশ গ্রহণ সফলভাবে সম্পন্ন হয়েছে!' : '✅ B2B ক্যাশ প্রদান সফলভাবে সম্পন্ন হয়েছে!');
+    setB2bAmount('');
+    setB2bPartnerName('');
+    setB2bDesc('');
+    loadData();
+  }
+
   async function submitBundleTx(e) {
     e.preventDefault();
     const amt = Number(bundleAmount);
@@ -632,11 +692,11 @@ export default function BkashPage() {
         {/* Left: Transaction Form */}
         <div className="card">
           {/* Mode selector */}
-          <div className="flex gap mb8" style={{ borderBottom: '2px solid var(--border)', paddingBottom: 10 }}>
+          <div className="flex gap mb8" style={{ borderBottom: '2px solid var(--border)', paddingBottom: 10, flexWrap: 'wrap' }}>
             <button
               type="button"
               className={`btn ${bkashType === 'personal' ? 'pink' : 'gray'}`}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 100 }}
               onClick={() => {
                 setBkashType('personal');
                 const p = personalAccounts[0];
@@ -648,7 +708,7 @@ export default function BkashPage() {
             <button
               type="button"
               className={`btn ${bkashType === 'agent' ? 'pink' : 'gray'}`}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 100 }}
               onClick={() => {
                 setBkashType('agent');
                 const a = agentAccounts[0];
@@ -659,8 +719,21 @@ export default function BkashPage() {
             </button>
             <button
               type="button"
+              className={`btn ${bkashType === 'b2b' ? 'blue' : 'gray'}`}
+              style={{ flex: 1, minWidth: 130, fontWeight: 'bold' }}
+              onClick={() => {
+                setBkashType('b2b');
+                if (!b2bAccountId && accounts[0]) {
+                  setB2bAccountId(accounts[0]._id);
+                }
+              }}
+            >
+              🤝 B2B বিনিময় (ফ্রি)
+            </button>
+            <button
+              type="button"
               className={`btn ${bkashType === 'bundle' ? 'pink' : 'gray'}`}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 100 }}
               onClick={() => {
                 setBkashType('bundle');
                 if (!bundleAccountId && personalAccounts[0]) {
@@ -672,16 +745,31 @@ export default function BkashPage() {
             </button>
           </div>
 
-          {/* Account Selector (for Personal & Agent) */}
+          {/* Account Selector (for Personal, Agent, B2B) */}
           {bkashType !== 'bundle' && (
             <div className="form-grid mt8">
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ fontWeight: 'bold' }}>মোবাইল নম্বর / অ্যাকাউন্ট বাছাই করুন</label>
-                <select value={selectedAccountId} onChange={(e) => setSelectedAccountId(e.target.value)}>
+                <label style={{ fontWeight: 'bold' }}>
+                  {bkashType === 'b2b'
+                    ? '🤝 B2B বিনিময়ের জন্য bKash নম্বর বাছাই করুন'
+                    : 'মোবাইল নম্বর / অ্যাকাউন্ট বাছাই করুন'}
+                </label>
+                <select
+                  value={bkashType === 'b2b' ? (b2bAccountId || selectedAccountId) : selectedAccountId}
+                  onChange={(e) => {
+                    setSelectedAccountId(e.target.value);
+                    if (bkashType === 'b2b') setB2bAccountId(e.target.value);
+                  }}
+                >
                   <option value="">-- নম্বর সিলেক্ট করুন --</option>
-                  {(bkashType === 'personal' ? personalAccounts : agentAccounts).map((acc) => (
+                  {(bkashType === 'personal'
+                    ? personalAccounts
+                    : bkashType === 'agent'
+                    ? agentAccounts
+                    : accounts
+                  ).map((acc) => (
                     <option key={acc._id} value={acc._id}>
-                      {acc.number} {acc.name ? `(${acc.name})` : ''} - ব্যালেন্স: {taka(acc.balance)}
+                      {acc.number} {acc.name ? `(${acc.name})` : ''} [{acc.accountType === 'agent' ? 'এজেন্ট' : 'পার্সোনাল'}] - ব্যালেন্স: {taka(acc.balance)}
                     </option>
                   ))}
                 </select>
@@ -1250,6 +1338,195 @@ export default function BkashPage() {
               </button>
             </form>
           )}
+
+          {/* B2B Cash Exchange Form (Free: 0 profit, 0 loss) */}
+          {bkashType === 'b2b' && (
+            <div className="mt8">
+              {/* Informative Header Banner */}
+              <div
+                style={{
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: 10,
+                  padding: '12px 16px',
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ fontWeight: 'bold', color: '#1e40af', fontSize: 14 }}>
+                  🤝 B2B ক্যাশ বিনিময় (সম্পূর্ণ ফ্রি - লাভ ০, লস ০)
+                </div>
+                <div style={{ fontSize: 12.5, color: '#1d4ed8', marginTop: 4, lineHeight: 1.6 }}>
+                  অন্য দোকানদার বা পার্টনারের সাথে সরাসরি ক্যাশ ও বিকাশ ব্যালেন্স বিনিময়। এতে কোনো লাভ বা খরচ কাটা হবে না।
+                </div>
+              </div>
+
+              {/* 2 Clear Options Toggle */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: 10,
+                  marginBottom: 16,
+                }}
+              >
+                <button
+                  type="button"
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: b2bFlow === 'in' ? '2px solid #16a34a' : '1px solid var(--border)',
+                    background: b2bFlow === 'in' ? '#f0fdf4' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}
+                  onClick={() => setB2bFlow('in')}
+                >
+                  <div style={{ fontWeight: 'bold', fontSize: 14, color: '#15803d' }}>
+                    🟢 ১. B2B ক্যাশ নিলাম
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#166534', marginTop: 4, lineHeight: 1.4 }}>
+                    • ক্যাশবাক্সে নগদ টাকা ঢুকবে (+)<br />
+                    • বিকাশ সিম থেকে ব্যালেন্স পাঠাবো (−)<br />
+                    • লাভ/লস: ৳০ (ফ্রি)
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: b2bFlow === 'out' ? '2px solid #dc2626' : '1px solid var(--border)',
+                    background: b2bFlow === 'out' ? '#fef2f2' : '#ffffff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}
+                  onClick={() => setB2bFlow('out')}
+                >
+                  <div style={{ fontWeight: 'bold', fontSize: 14, color: '#dc2626' }}>
+                    🔴 ২. B2B ক্যাশ দিলাম
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#991b1b', marginTop: 4, lineHeight: 1.4 }}>
+                    • ক্যাশবাক্স থেকে নগদ দেবো (−)<br />
+                    • বিকাশ সিমে ব্যালেন্স গ্রহণ করবো (+)<br />
+                    • লাভ/লস: ৳০ (ফ্রি)
+                  </div>
+                </button>
+              </div>
+
+              <form className="form-grid" onSubmit={submitB2bTx}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontWeight: 'bold' }}>
+                    টাকার পরিমাণ (৳) *
+                  </label>
+                  <input
+                    type="number"
+                    style={{ fontSize: 18, fontWeight: 'bold' }}
+                    placeholder="যেমন: ১০০০০"
+                    value={b2bAmount}
+                    onChange={(e) => setB2bAmount(e.target.value)}
+                    required
+                  />
+                  <div className="flex align-center mt4" style={{ gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>কুইক এমাউন্ট:</span>
+                    {[1000, 2000, 5000, 10000, 20000, 50000, 100000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        className="btn sm"
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: 11,
+                          background: b2bAmount === String(amt) ? '#2563eb' : '#f1f5f9',
+                          color: b2bAmount === String(amt) ? '#fff' : 'var(--text)',
+                          border: 'none',
+                          borderRadius: 4,
+                        }}
+                        onClick={() => setB2bAmount(String(amt))}
+                      >
+                        ৳{amt.toLocaleString('en-IN')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label>দোকানদার / পার্টনারের নাম বা নম্বর (ঐচ্ছিক)</label>
+                  <input
+                    placeholder="যেমন: রাজু স্টোর / 017xxxxxxxx"
+                    value={b2bPartnerName}
+                    onChange={(e) => setB2bPartnerName(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label>বিবরণ / নোট (ঐচ্ছিক)</label>
+                  <input
+                    placeholder="যেমন: জরুরি ক্যাশ বিনিময়"
+                    value={b2bDesc}
+                    onChange={(e) => setB2bDesc(e.target.value)}
+                  />
+                </div>
+
+                {/* Live Preview of B2B Free Exchange */}
+                <div
+                  style={{
+                    gridColumn: '1 / -1',
+                    background: b2bFlow === 'in' ? '#f0fdf4' : '#eff6ff',
+                    padding: '12px 16px',
+                    borderRadius: 10,
+                    border: `1px solid ${b2bFlow === 'in' ? '#86efac' : '#bfdbfe'}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 'bold',
+                      color: b2bFlow === 'in' ? '#15803d' : '#1d4ed8',
+                      marginBottom: 6,
+                    }}
+                  >
+                    💡 লেনদেনের হিসাব বিবরণী (সম্পূর্ণ ফ্রি - কোনো ফি বা লাভ নেই):
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.8,
+                      color: b2bFlow === 'in' ? '#166534' : '#1e40af',
+                    }}
+                  >
+                    {b2bFlow === 'in' ? (
+                      <>
+                        • আপনার ক্যাশবাক্সে নগদ টাকা জমা হবে: <b style={{ color: '#16a34a' }}>+{taka(Number(b2bAmount) || 0)}</b> (ক্যাশবাক্স বাড়বে)
+                        <br />• আপনার বিকাশ সিম থেকে ব্যালেন্স কমবে: <b style={{ color: '#dc2626' }}>-{taka(Number(b2bAmount) || 0)}</b> (ব্যালেন্স কাটা)
+                        <br />• কমিশন / লাভ / ক্ষতি: <b style={{ color: '#64748b' }}>৳০ (সম্পূর্ণ ফ্রি)</b>
+                      </>
+                    ) : (
+                      <>
+                        • আপনার ক্যাশবাক্স থেকে নগদ ক্যাশ বের হবে: <b style={{ color: '#dc2626' }}>-{taka(Number(b2bAmount) || 0)}</b> (ক্যাশবাক্স কমবে)
+                        <br />• আপনার বিকাশ সিমে ডিজিটাল ব্যালেন্স যোগ হবে: <b style={{ color: '#16a34a' }}>+{taka(Number(b2bAmount) || 0)}</b> (ব্যালেন্স বাড়বে)
+                        <br />• কমিশন / লাভ / ক্ষতি: <b style={{ color: '#64748b' }}>৳০ (সম্পূর্ণ ফ্রি)</b>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className={`btn ${b2bFlow === 'in' ? 'green' : 'blue'}`}
+                  style={{ gridColumn: '1 / -1', marginTop: 6, fontSize: 15, padding: '10px 14px' }}
+                  disabled={loading}
+                >
+                  {loading
+                    ? 'সংরক্ষণ হচ্ছে...'
+                    : b2bFlow === 'in'
+                    ? '🟢 B2B ক্যাশ গ্রহণ নিশ্চিত করুন (ফ্রি)'
+                    : '🔴 B2B ক্যাশ প্রদান নিশ্চিত করুন (ফ্রি)'}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
 
         {/* Right: History & Ledger Table */}
@@ -1272,8 +1549,10 @@ export default function BkashPage() {
               </thead>
               <tbody>
                 {txns.map((t) => {
-                  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in'].includes(t.type);
+                  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in', 'b2b_cash_out'].includes(t.type);
                   const isBundle = t.type === 'bundle_expense';
+                  const isB2bIn = t.type === 'b2b_cash_in';
+                  const isB2bOut = t.type === 'b2b_cash_out';
                   const isPersonalIn = t.type === 'balance_in' || t.type === 'cust_cashout';
                   const isPersonalOut = t.type === 'balance_out' || t.type === 'cust_cashin' || t.type === 'self_cashout';
 
@@ -1282,6 +1561,12 @@ export default function BkashPage() {
                   if (isBundle) {
                     badgeLabel = 'বান্ডেল খরচ';
                     badgeClass = 'amber';
+                  } else if (isB2bIn) {
+                    badgeLabel = '🤝 B2B ক্যাশ নিলাম (ফ্রি)';
+                    badgeClass = 'green';
+                  } else if (isB2bOut) {
+                    badgeLabel = '🤝 B2B ক্যাশ দিলাম (ফ্রি)';
+                    badgeClass = 'blue';
                   } else if (t.bkashType === 'agent') {
                     badgeLabel = isPlus ? 'এজেন্ট ক্যাশআউট' : 'এজেন্ট ক্যাশইন';
                     badgeClass = 'blue';
@@ -1306,13 +1591,23 @@ export default function BkashPage() {
                           {badgeLabel}
                         </span>
                         <div style={{ fontSize: 12, fontWeight: 'bold', marginTop: 2 }}>{t.description}</div>
-                        {t.ref && <div style={{ fontSize: 11, color: 'var(--muted)' }}>মোবাইল/রেফ: {t.ref}</div>}
-                        {t.cashAmount > 0 && isPlus && (
+                        {t.ref && <div style={{ fontSize: 11, color: 'var(--muted)' }}>রেফ/পার্টনার: {t.ref}</div>}
+                        {isB2bIn && (
+                          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 'bold' }}>
+                            💵 ড্রয়ারে ক্যাশ জমা: +{taka(t.cashAmount || t.amount)} (ফ্রি)
+                          </div>
+                        )}
+                        {isB2bOut && (
+                          <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 'bold' }}>
+                            💸 ড্রয়ার থেকে ক্যাশ দেওয়া: -{taka(t.cashAmount || t.amount)} (ফ্রি)
+                          </div>
+                        )}
+                        {!isB2bIn && !isB2bOut && t.cashAmount > 0 && isPlus && (
                           <div style={{ fontSize: 11, color: '#dc2626' }}>
                             💸 ক্যাশ প্রদান: {taka(t.cashAmount)}
                           </div>
                         )}
-                        {t.cashAmount > 0 && !isPlus && !isBundle && (
+                        {!isB2bIn && !isB2bOut && t.cashAmount > 0 && !isPlus && !isBundle && (
                           <div style={{ fontSize: 11, color: '#16a34a' }}>
                             💵 ক্যাশ গ্রহণ: {taka(t.cashAmount)}
                           </div>
@@ -1326,6 +1621,8 @@ export default function BkashPage() {
                       <td>
                         {isBundle ? (
                           <b className="red">-{taka(t.amount)}</b>
+                        ) : (isB2bIn || isB2bOut) ? (
+                          <span style={{ color: '#64748b', fontSize: 12, fontWeight: 'bold' }}>৳০ (ফ্রি)</span>
                         ) : t.profit > 0 ? (
                           <b className="green">+{taka(t.profit)}</b>
                         ) : t.profit < 0 ? (

@@ -25,6 +25,7 @@ export default function ProductsPage() {
     packetBuyPrice: '', // প্রতি কার্টনের কেনার দাম (যেমন: ৬০০)
     piecesPerPacket: '', // প্রতি কার্টনে পিস সংখ্যা (যেমন: ২৪)
     packetSellPrice: '', // প্রতি কার্টনের বিক্রির দাম (যেমন: ৭২০)
+    isExistingStock: false, // আগের/পূর্বের স্টক কি না (ক্যাশবাক্স থেকে টাকা কমবে না)
   };
 
   const [form, setForm] = useState(initialForm);
@@ -36,6 +37,7 @@ export default function ProductsPage() {
   const [addPacketQty, setAddPacketQty] = useState('');
   const [addPieceQty, setAddPieceQty] = useState('');
   const [updatePacketBuyPrice, setUpdatePacketBuyPrice] = useState('');
+  const [addStockIsExisting, setAddStockIsExisting] = useState(false);
   const [stockSubmitting, setStockSubmitting] = useState(false);
 
   // Search & Pagination States
@@ -264,6 +266,7 @@ export default function ProductsPage() {
       piecesPerPacket: Number(form.piecesPerPacket) || 1,
       packetBuyPrice: Number(form.packetBuyPrice) || 0,
       packetSellPrice: Number(form.packetSellPrice) || 0,
+      isExistingStock: Boolean(form.isExistingStock),
     };
 
     const body = editingId ? { id: editingId, ...payload } : payload;
@@ -303,6 +306,7 @@ export default function ProductsPage() {
       packetBuyPrice: p.packetBuyPrice ? String(p.packetBuyPrice) : (isPacket && p.buyPrice ? String(Math.round(p.buyPrice * pieces)) : ''),
       piecesPerPacket: p.piecesPerPacket ? String(p.piecesPerPacket) : '',
       packetSellPrice: p.packetSellPrice ? String(p.packetSellPrice) : (isPacket && p.sellPrice ? String(Math.round(p.sellPrice * pieces)) : ''),
+      isExistingStock: Boolean(p.isExistingStock),
     });
   }
 
@@ -313,6 +317,7 @@ export default function ProductsPage() {
     setAddPacketQty('1');
     setAddPieceQty(isPacket && p.piecesPerPacket ? String(p.piecesPerPacket) : '10');
     setUpdatePacketBuyPrice(p.packetBuyPrice ? String(p.packetBuyPrice) : '');
+    setAddStockIsExisting(false);
   }
 
   async function handleAddStockSubmit(e) {
@@ -353,6 +358,7 @@ export default function ProductsPage() {
       stockQty: updatedStock,
       buyPrice: newBuyPrice,
       packetBuyPrice: newPacketBuyPrice,
+      isExistingStock: Boolean(addStockIsExisting),
     };
 
     const res = await fetch('/api/products', {
@@ -477,6 +483,51 @@ export default function ProductsPage() {
                     (সরাসরি প্রতি পিসের কেনা ও বিক্রির দাম)
                   </div>
                 </button>
+              </div>
+            </div>
+
+            {/* Existing Stock vs Cash Purchase Toggle */}
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                background: form.isExistingStock ? '#f8fafc' : '#f0fdf4',
+                border: form.isExistingStock ? '1px solid #cbd5e1' : '1px solid #86efac',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginTop: 4,
+                marginBottom: 6,
+              }}
+            >
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  cursor: 'pointer',
+                  margin: 0,
+                  fontSize: 13.5,
+                  fontWeight: 'bold',
+                  color: form.isExistingStock ? '#334155' : '#15803d',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.isExistingStock}
+                  onChange={(e) => set({ isExistingStock: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#16a34a' }}
+                />
+                <span>🏷️ এটি আগের স্টক (ক্যাশবাক্স বা বাড়ি থেকে আনা ক্যাশ থেকে টাকা কমবে না)</span>
+              </label>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, paddingLeft: 28, lineHeight: 1.5 }}>
+                {form.isExistingStock ? (
+                  <span style={{ color: '#059669', fontWeight: '600' }}>
+                    ✓ টিক দেওয়া হয়েছে: এটি দোকানের আগের/পুরাতন স্টক, তাই ক্যাশবাক্স বা বাড়ি থেকে আনা ক্যাশ থেকে কোনো টাকা কাটা হবে না।
+                  </span>
+                ) : (
+                  <span>
+                    💡 টিক না থাকলে: এটি আজকের নতুন মাল কেনা হিসেবে গণ্য হবে এবং ক্যাশবাক্স থেকে মোট কেনার দাম বিয়োগ হবে।
+                  </span>
+                )}
               </div>
             </div>
 
@@ -869,6 +920,11 @@ export default function ProductsPage() {
                             🛍️ {p.unit || 'পিস'}
                           </span>
                         )}
+                        {p.isExistingStock && (
+                          <span className="badge gray" style={{ fontSize: 9.5, marginTop: 4, marginLeft: 4, display: 'inline-block' }}>
+                            🏷️ আগের স্টক
+                          </span>
+                        )}
                       </td>
                       <td>
                         <b>{taka(p.buyPrice)}</b>
@@ -1079,6 +1135,38 @@ export default function ProductsPage() {
                   />
                 </div>
               )}
+
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  background: addStockIsExisting ? '#f8fafc' : '#f0fdf4',
+                  border: addStockIsExisting ? '1px solid #cbd5e1' : '1px solid #86efac',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  marginTop: 4,
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    margin: 0,
+                    fontSize: 12.5,
+                    fontWeight: 'bold',
+                    color: addStockIsExisting ? '#334155' : '#15803d',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={addStockIsExisting}
+                    onChange={(e) => setAddStockIsExisting(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: '#16a34a' }}
+                  />
+                  <span>🏷️ এটি আগের স্টক (ক্যাশবাক্স থেকে টাকা কমবে না)</span>
+                </label>
+              </div>
 
               <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, marginTop: 8 }}>
                 <button

@@ -15,9 +15,9 @@ export async function GET() {
   } else {
     // calculate legacy total balance from txns
     for (const t of txns) {
-      if (['income', 'sale', 'cust_cashout', 'agent_cashout', 'b2b_receive', 'cashout', 'balance_in'].includes(t.type)) {
+      if (['income', 'sale', 'cust_cashout', 'agent_cashout', 'b2b_receive', 'cashout', 'balance_in', 'b2b_cash_out'].includes(t.type)) {
         totalBalance += t.amount;
-      } else if (['expense', 'self_cashout', 'cust_cashin', 'agent_cashin', 'b2b_send', 'cashin', 'balance_out'].includes(t.type)) {
+      } else if (['expense', 'self_cashout', 'cust_cashin', 'agent_cashin', 'b2b_send', 'cashin', 'balance_out', 'b2b_cash_in'].includes(t.type)) {
         totalBalance -= t.amount;
       } else if (t.type === 'bundle_expense' && t.paymentSource !== 'cash') {
         totalBalance -= t.amount;
@@ -90,9 +90,9 @@ export async function POST(req) {
   // Calculate balance change direction
   // + balance: cust_cashout (personal receives bKash), balance_in, agent_cashout (agent receives bKash), income, b2b_receive
   // - balance: self_cashout, cust_cashin, balance_out, agent_cashin, expense, b2b_send, cashin, bundle_expense (if from sim)
-  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in'].includes(type);
+  const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in', 'b2b_cash_out'].includes(type);
   const isMinus =
-    ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin', 'balance_out'].includes(type) ||
+    ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin', 'balance_out', 'b2b_cash_in'].includes(type) ||
     (type === 'bundle_expense' && paymentSource !== 'cash');
 
   if (targetAccount) {
@@ -142,9 +142,9 @@ export async function DELETE(req) {
     // Revert balance change on delete
     const account = await BkashAccount.findById(txn.accountId);
     if (account) {
-      const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in'].includes(txn.type);
+      const isPlus = ['cust_cashout', 'agent_cashout', 'income', 'sale', 'b2b_receive', 'cashout', 'balance_in', 'b2b_cash_out'].includes(txn.type);
       const isMinus =
-        ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin', 'balance_out'].includes(txn.type) ||
+        ['self_cashout', 'cust_cashin', 'agent_cashin', 'expense', 'b2b_send', 'cashin', 'balance_out', 'b2b_cash_in'].includes(txn.type) ||
         (txn.type === 'bundle_expense' && txn.paymentSource !== 'cash');
 
       if (isPlus) account.balance = (account.balance || 0) - txn.amount;
