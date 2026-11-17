@@ -10,19 +10,25 @@ export async function GET() {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Sales totals
+  // Sales totals (দোকানের পণ্য বিক্রি)
   const salesAll = await Sale.find().lean();
   const todaySales = salesAll.filter((s) => new Date(s.date) >= startOfToday);
-  const totalSales = salesAll.reduce((a, s) => a + s.totalAmount, 0);
+  const totalProductSales = salesAll.reduce((a, s) => a + s.totalAmount, 0);
+  const todayProductSales = todaySales.reduce((a, s) => a + s.totalAmount, 0);
   const totalDue = salesAll.reduce((a, s) => a + s.dueAmount, 0);
-  const todaySalesAmt = todaySales.reduce((a, s) => a + s.totalAmount, 0);
   const todayDue = todaySales.reduce((a, s) => a + s.dueAmount, 0);
 
-  // Recharge profits
+  // Recharge totals & profits (মোবাইল রিচার্জ মূল বিক্রির সাথেও যুক্ত হবে)
   const rechargesAll = await Recharge.find().lean();
   const todayRecharges = rechargesAll.filter((r) => new Date(r.date) >= startOfToday);
+  const totalRechargeSales = rechargesAll.reduce((a, r) => a + (r.amount || 0), 0);
+  const todayRechargeSales = todayRecharges.reduce((a, r) => a + (r.amount || 0), 0);
   const todayRechargeProfit = todayRecharges.reduce((a, r) => a + r.commission, 0);
   const rechargeProfitAll = rechargesAll.reduce((a, r) => a + r.commission, 0);
+
+  // মূল মোট বিক্রি = পণ্য বিক্রি + মোবাইল রিচার্জ
+  const totalSales = totalProductSales + totalRechargeSales;
+  const todaySalesAmt = todayProductSales + todayRechargeSales;
 
   // bKash profits & accounts
   const bkashAll = await Bkash.find().lean();
@@ -139,6 +145,10 @@ export async function GET() {
   return NextResponse.json({
     totalSales,
     todaySales: todaySalesAmt,
+    totalProductSales,
+    todayProductSales,
+    totalRechargeSales,
+    todayRechargeSales,
     totalDue,
     todayDue,
     stockValue,

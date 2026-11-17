@@ -23,9 +23,15 @@ export default function TodayTransactionsPage() {
   const { sales, bkash, expenses, recharges, stockLogs = [], cashTransactions = [] } = data;
 
   // Calculators
-  const todaySalesAmt = sales.reduce((a, s) => a + s.totalAmount, 0);
+  const todayProductSalesAmt = sales.reduce((a, s) => a + s.totalAmount, 0);
   const todaySalesPaid = sales.reduce((a, s) => a + s.paidAmount, 0);
   const todaySalesDue = sales.reduce((a, s) => a + s.dueAmount, 0);
+
+  const todayRechargesAmt = recharges.reduce((a, r) => a + r.amount, 0);
+  const todayRechargeProfit = recharges.reduce((a, r) => a + r.commission, 0);
+
+  // মূল বিক্রি = পণ্য বিক্রি + মোবাইল রিচার্জ
+  const todayTotalSalesAmt = todayProductSalesAmt + todayRechargesAmt;
 
   const todaySalesProfit = sales.reduce((acc, s) => {
     const saleItemsProfit = s.items.reduce((sum, it) => {
@@ -33,9 +39,6 @@ export default function TodayTransactionsPage() {
     }, 0);
     return acc + saleItemsProfit - s.discount;
   }, 0);
-
-  const todayRechargesAmt = recharges.reduce((a, r) => a + r.amount, 0);
-  const todayRechargeProfit = recharges.reduce((a, r) => a + r.commission, 0);
 
   const todayBkashProfit = bkash.reduce((a, t) => a + (t.profit || 0), 0);
 

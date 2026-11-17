@@ -13,8 +13,10 @@ export async function GET() {
   const bkash = await Bkash.find().lean();
   const recharges = await Recharge.find().lean();
 
-  const totalSales = sales.reduce((a, s) => a + s.totalAmount, 0);
-  const totalPaid = sales.reduce((a, s) => a + s.paidAmount, 0);
+  const productSales = sales.reduce((a, s) => a + s.totalAmount, 0);
+  const rechargeSales = recharges.reduce((a, r) => a + (r.amount || 0), 0);
+  const totalSales = productSales + rechargeSales;
+  const totalPaid = sales.reduce((a, s) => a + s.paidAmount, 0) + rechargeSales;
   const totalDue = sales.reduce((a, s) => a + s.dueAmount, 0);
   const totalExpense = expenses.reduce((a, e) => a + e.amount, 0);
   const bkashProfit = bkash.reduce((a, t) => a + (t.profit || 0), 0);
@@ -28,15 +30,20 @@ export async function GET() {
       if (p) cogs += (p.buyPrice || 0) * it.qty;
     }
   }
-  const grossProfit = totalSales - cogs;
+  const grossProfit = productSales - cogs;
   const netProfit = grossProfit + bkashProfit + rechargeProfit - totalExpense;
 
-  // Last 14 days sales trend
+  // Last 14 days sales trend (পণ্য বিক্রি + রিচার্জ)
   const map = {};
   for (const s of sales) {
     const d = new Date(s.date);
     const key = `${d.getDate()}/${d.getMonth() + 1}`;
     map[key] = (map[key] || 0) + s.totalAmount;
+  }
+  for (const r of recharges) {
+    const d = new Date(r.date);
+    const key = `${d.getDate()}/${d.getMonth() + 1}`;
+    map[key] = (map[key] || 0) + (r.amount || 0);
   }
   const days = [];
   for (let i = 13; i >= 0; i--) {
@@ -68,6 +75,8 @@ export async function GET() {
 
   return NextResponse.json({
     totalSales,
+    productSales,
+    rechargeSales,
     totalPaid,
     totalDue,
     totalExpense,

@@ -39,6 +39,30 @@ export async function POST(req) {
   return NextResponse.json({ account }, { status: 201 });
 }
 
+export async function PUT(req) {
+  if (!getSessionUserId()) return NextResponse.json({ error: 'অনুমতি নেই' }, { status: 401 });
+  await connectDB();
+  const body = await req.json();
+  const { id, name, number, accountType, balance } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: 'অ্যাকাউন্ট আইডি প্রদান করুন' }, { status: 400 });
+  }
+
+  const updateFields = {};
+  if (name !== undefined) updateFields.name = name;
+  if (number !== undefined) updateFields.number = number;
+  if (accountType !== undefined) updateFields.accountType = accountType;
+  if (balance !== undefined) updateFields.balance = Number(balance) || 0;
+
+  const updated = await BkashAccount.findByIdAndUpdate(id, updateFields, { new: true });
+  if (!updated) {
+    return NextResponse.json({ error: 'অ্যাকাউন্ট পাওয়া যায়নি' }, { status: 404 });
+  }
+
+  return NextResponse.json({ account: updated });
+}
+
 export async function DELETE(req) {
   if (!getSessionUserId()) return NextResponse.json({ error: 'অনুমতি নেই' }, { status: 401 });
   const { searchParams } = new URL(req.url);

@@ -178,6 +178,69 @@ export async function POST(req) {
   return NextResponse.json({ transaction: tx }, { status: 201 });
 }
 
+export async function PUT(req) {
+  if (!getSessionUserId()) return NextResponse.json({ error: 'অনুমতি নেই' }, { status: 401 });
+  await connectDB();
+  const body = await req.json();
+  const { id, amount, description, category, date, action } = body;
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Action: set_daily_home_capital (sets today's home cash directly)
+  if (action === 'set_daily_home_capital') {
+    const amt = Number(amount);
+    if (isNaN(amt) || amt < 0) {
+      return NextResponse.json({ error: 'সঠিক টাকার পরিমাণ দিন' }, { status: 400 });
+    }
+
+    // Find any home_capital transaction from today
+    const todayHomeTx = await CashTransaction.findOne({
+      type: 'in',
+      source: 'home_capital',
+      date: { $gte: startOfToday },
+    });
+
+    if (todayHomeTx) {
+      todayHomeTx.amount = amt;
+      if (description !== undefined) todayHomeTx.description = description.trim();
+      await todayHomeTx.save();
+      return NextResponse.json({ transaction: todayHomeTx, updated: true });
+    } else {
+      const newTx = await CashTransaction.create({
+        type: 'in',
+        source: 'home_capital',
+        category: 'বাড়ি থেকে আনা (বিকাশ ও মাল কেনা)',
+        amount: amt,
+        description: description?.trim() || 'আজকে বাড়ি থেকে আনা ক্যাশ',
+        date: new Date(),
+      });
+      return NextResponse.json({ transaction: newTx, created: true });
+    }
+  }
+
+  if (!id) {
+    return NextResponse.json({ error: 'আইডি প্রয়োজন' }, { status: 400 });
+  }
+
+  const amt = Number(amount);
+  if (isNaN(amt) || amt < 0) {
+    return NextResponse.json({ error: 'সঠিক টাকার পরিমাণ দিন' }, { status: 400 });
+  }
+
+  const updateFields = { amount: amt };
+  if (description !== undefined) updateFields.description = description.trim();
+  if (category !== undefined) updateFields.category = category;
+  if (date) updateFields.date = new Date(date);
+
+  const updated = await CashTransaction.findByIdAndUpdate(id, updateFields, { new: true });
+  if (!updated) {
+    return NextResponse.json({ error: 'লেনদেন পাওয়া যায়নি' }, { status: 404 });
+  }
+
+  return NextResponse.json({ transaction: updated });
+}
+
 export async function DELETE(req) {
   if (!getSessionUserId()) return NextResponse.json({ error: 'অনুমতি নেই' }, { status: 401 });
   const { searchParams } = new URL(req.url);

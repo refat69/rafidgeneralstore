@@ -32,16 +32,22 @@ export default function DashboardPage() {
         <>
           <div className="grid cols-4 mt">
             <div className="card" style={{ borderLeft: '4px solid #22c55e' }}>
-              <div className="label">আজকের মোট বিক্রি (Today's Sales)</div>
+              <div className="label">আজকের মোট বিক্রি (পণ্য + রিচার্জ)</div>
               <div className="value green">{taka(stats.todaySales)}</div>
+              <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                পণ্য: {taka(stats.todayProductSales || 0)} • রিচার্জ: {taka(stats.todayRechargeSales || 0)}
+              </div>
             </div>
             <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
-              <div className="label">আজকের মাল কেনা (Today's Purchases)</div>
+              <div className="label">আজকের মাল কেনা (Purchases)</div>
               <div className="value blue">{taka(stats.todayStockAdded)}</div>
             </div>
             <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
-              <div className="label">মোট বিক্রি (Overall Sales)</div>
+              <div className="label">সর্বমোট বিক্রি (পণ্য + রিচার্জ)</div>
               <div className="value blue">{taka(stats.totalSales)}</div>
+              <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                পণ্য: {taka(stats.totalProductSales || 0)} • রিচার্জ: {taka(stats.totalRechargeSales || 0)}
+              </div>
             </div>
             <div className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
               <div className="label">মোট নিট লাভ (Total Net Profit)</div>
@@ -61,7 +67,10 @@ export default function DashboardPage() {
               <div className={`value ${stats.cashInHand >= 0 ? 'green' : 'red'}`}>{taka(stats.cashInHand)}</div>
             </div>
             <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
-              <div className="label">বাড়ি থেকে আনা মোট ক্যাশ</div>
+              <div className="label flex between align-center">
+                <span>বাড়ি থেকে আনা ক্যাশ</span>
+                <Link href="/admin/cash" className="blue" style={{ fontSize: 11 }}>এডিট ✏️</Link>
+              </div>
               <div className="value blue">{taka(stats.capitalFromHome)}</div>
             </div>
             <div className="card">
