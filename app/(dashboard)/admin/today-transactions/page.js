@@ -75,21 +75,30 @@ export default function TodayTransactionsPage() {
 
       {/* Summary Cards Row 1 */}
       <div className="grid cols-4 mt">
-        <div className="card" style={{ borderLeft: '4px solid #22c55e' }}>
-          <div className="label">আজকের নিট লাভ (Net Profit)</div>
-          <div className={`value ${todayNetProfit >= 0 ? 'green' : 'red'}`}>{taka(todayNetProfit)}</div>
+        <div className="card" style={{ borderLeft: '4px solid #22c55e', background: '#f0fdf4' }}>
+          <div className="label" style={{ fontWeight: 'bold' }}>💰 আজকের মোট লাভ (Net Profit)</div>
+          <div className={`value ${todayNetProfit >= 0 ? 'green' : 'red'}`} style={{ fontSize: 28 }}>{taka(todayNetProfit)}</div>
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            পণ্য {taka(todaySalesProfit)} + রিচার্জ {taka(todayRechargeProfit)} + বিকাশ {taka(todayBkashProfit)} − খরচ {taka(todayExpensesAmt)}
+          </div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
-          <div className="label">আজকের বিক্রি (Sales)</div>
-          <div className="value green">{taka(todaySalesAmt)}</div>
+          <div className="label">আজকের মূল বিক্রি (পণ্য + রিচার্জ)</div>
+          <div className="value green" style={{ fontSize: 26 }}>{taka(todayTotalSalesAmt)}</div>
+          <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+            দোকানের পণ্য: {taka(todayProductSalesAmt)} + রিচার্জ: {taka(todayRechargesAmt)}
+          </div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #0284c7' }}>
           <div className="label">আজকের মাল কেনা (Purchases)</div>
-          <div className="value blue">{taka(todayStockAddedAmt)}</div>
+          <div className="value blue" style={{ fontSize: 26 }}>{taka(todayStockAddedAmt)}</div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #10b981' }}>
-          <div className="label">বাড়ি থেকে আনা ক্যাশ (Capital)</div>
-          <div className="value green">{taka(todayCapitalFromHome)}</div>
+          <div className="label flex between align-center">
+            <span>বাড়ি থেকে আনা ক্যাশ</span>
+            <Link href="/admin/cash" className="blue" style={{ fontSize: 11 }}>এডিট ✏️</Link>
+          </div>
+          <div className="value green" style={{ fontSize: 26 }}>{taka(todayCapitalFromHome)}</div>
         </div>
       </div>
 
@@ -100,8 +109,11 @@ export default function TodayTransactionsPage() {
           <div className="value red">{taka(todaySalesDue)}</div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #a855f7' }}>
-          <div className="label">আজকের রিচার্জ (Recharge)</div>
+          <div className="label">আজকের মোবাইল রিচার্জ (Recharge)</div>
           <div className="value purple">{taka(todayRechargesAmt)}</div>
+          <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+            রিচার্জ থেকে কমিশন লাভ: <b className="green">+{taka(todayRechargeProfit)}</b>
+          </div>
         </div>
         <div className="card" style={{ borderLeft: '4px solid #dc2626' }}>
           <div className="label">আজকের খরচ (Expense)</div>

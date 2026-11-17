@@ -81,6 +81,18 @@ export default function BkashPage() {
   const [newAccType, setNewAccType] = useState('personal');
   const [newAccBalance, setNewAccBalance] = useState('0');
 
+  // Account Edit Modal state (to edit bKash balance directly)
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [editAccName, setEditAccName] = useState('');
+  const [editAccNumber, setEditAccNumber] = useState('');
+  const [editAccType, setEditAccType] = useState('personal');
+  const [editAccBalance, setEditAccBalance] = useState('');
+
+  // Daily Home Cash Edit Modal state
+  const [showDailyHomeCashModal, setShowDailyHomeCashModal] = useState(false);
+  const [dailyHomeCashAmount, setDailyHomeCashAmount] = useState('');
+  const [dailyHomeCashDesc, setDailyHomeCashDesc] = useState('আজকে বাড়ি থেকে আনা ক্যাশ');
+
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -267,6 +279,77 @@ export default function BkashPage() {
     setNewAccName('');
     setNewAccNumber('');
     setNewAccBalance('0');
+    loadData();
+  }
+
+  function openEditAccountModal(acc) {
+    if (!acc) return;
+    setEditingAccount(acc);
+    setEditAccName(acc.name || '');
+    setEditAccNumber(acc.number || '');
+    setEditAccType(acc.accountType || 'personal');
+    setEditAccBalance(String(acc.balance !== undefined ? acc.balance : ''));
+  }
+
+  async function handleUpdateAccount(e) {
+    e.preventDefault();
+    if (!editingAccount) return;
+    if (!editAccNumber.trim()) {
+      toast.error('মোবাইল নম্বর লিখুন');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/bkash/accounts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingAccount._id,
+        name: editAccName.trim(),
+        number: editAccNumber.trim(),
+        accountType: editAccType,
+        balance: Number(editAccBalance) || 0,
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('বিকাশ ব্যালেন্স আপডেট করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ বিকাশ ব্যালেন্স সফলভাবে আপডেট হয়েছে!');
+    setEditingAccount(null);
+    loadData();
+  }
+
+  function openDailyHomeCashModal() {
+    setDailyHomeCashAmount(cashSummary.capitalFromHome ? String(cashSummary.capitalFromHome) : '');
+    setDailyHomeCashDesc('আজকে বাড়ি থেকে আনা ক্যাশ');
+    setShowDailyHomeCashModal(true);
+  }
+
+  async function handleSaveDailyHomeCash(e) {
+    e.preventDefault();
+    const amt = Number(dailyHomeCashAmount);
+    if (isNaN(amt) || amt < 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/cash', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'set_daily_home_capital',
+        amount: amt,
+        description: dailyHomeCashDesc.trim() || 'আজকে বাড়ি থেকে আনা ক্যাশ',
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('বাড়ি থেকে আনা ক্যাশ আপডেট করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ আজকের বাড়ি থেকে আনা ক্যাশ সফলভাবে আপডেট হয়েছে!');
+    setShowDailyHomeCashModal(false);
     loadData();
   }
 
@@ -561,7 +644,18 @@ export default function BkashPage() {
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #ec4899', background: '#fdf2f8' }}>
-          <div className="label">📱 মোট বিকাশ ব্যালেন্স (All SIMs)</div>
+          <div className="flex between align-center">
+            <span className="label">📱 মোট বিকাশ ব্যালেন্স (All SIMs)</span>
+            {accounts.length > 0 && (
+              <button
+                className="btn sm pink"
+                style={{ padding: '2px 8px', fontSize: 11 }}
+                onClick={() => openEditAccountModal(accounts.find((a) => a._id === selectedAccountId) || accounts[0])}
+              >
+                ✏️ ব্যালেন্স এডিট
+              </button>
+            )}
+          </div>
           <div className="value pink" style={{ fontSize: 28 }}>{taka(totalBalance)}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
             নিবন্ধিত {accounts.length} টি সিমে মোট ডিজিটাল ব্যালেন্স
@@ -569,7 +663,16 @@ export default function BkashPage() {
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
-          <div className="label">🏠 বাড়ি থেকে আনা মোট ক্যাশ</div>
+          <div className="flex between align-center">
+            <span className="label">🏠 বাড়ি থেকে আনা ক্যাশ</span>
+            <button
+              className="btn sm blue"
+              style={{ padding: '2px 8px', fontSize: 11 }}
+              onClick={openDailyHomeCashModal}
+            >
+              ✏️ পরিবর্তন
+            </button>
+          </div>
           <div className="value blue" style={{ fontSize: 28 }}>{taka(cashSummary.capitalFromHome)}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
             বিকাশ ও মাল কেনার মূলধন
@@ -656,25 +759,51 @@ export default function BkashPage() {
                 <span className={`badge ${acc.accountType === 'agent' ? 'blue' : 'pink'}`} style={{ fontSize: 10 }}>
                   {acc.accountType === 'agent' ? 'এজেন্ট' : 'পার্সোনাল'}
                 </span>
-                <button
-                  className="btn sm text red"
-                  style={{ padding: '0 4px', fontSize: 11 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteAccount(acc._id);
-                  }}
-                >
-                  ✕
-                </button>
+                <div className="flex gap" style={{ gap: 4 }}>
+                  <button
+                    className="btn sm text blue"
+                    style={{ padding: '0 4px', fontSize: 11 }}
+                    title="ব্যালেন্স ও তথ্য এডিট করুন"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditAccountModal(acc);
+                    }}
+                  >
+                    ✏️ এডিট
+                  </button>
+                  <button
+                    className="btn sm text red"
+                    style={{ padding: '0 4px', fontSize: 11 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteAccount(acc._id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
               <div style={{ fontWeight: 'bold', fontSize: 16, marginTop: 6, color: 'var(--text)' }}>
                 {acc.number} {acc.name ? `(${acc.name})` : ''}
               </div>
               <div className="flex between align-center mt8" style={{ borderTop: '1px solid #f1f5f9', paddingTop: 6 }}>
                 <span className="muted" style={{ fontSize: 12 }}>ব্যালেন্স:</span>
-                <b className={acc.balance < 0 ? 'red' : 'green'} style={{ fontSize: 16 }}>
-                  {taka(acc.balance)}
-                </b>
+                <div className="flex align-center gap" style={{ gap: 6 }}>
+                  <b className={acc.balance < 0 ? 'red' : 'green'} style={{ fontSize: 16 }}>
+                    {taka(acc.balance)}
+                  </b>
+                  <button
+                    className="btn sm text blue"
+                    style={{ padding: '0 4px', fontSize: 11 }}
+                    title="ব্যালেন্স এডিট"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditAccountModal(acc);
+                    }}
+                  >
+                    ✏️
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -1780,6 +1909,166 @@ export default function BkashPage() {
                   {loading ? 'সংরক্ষণ হচ্ছে...' : '➕ ক্যাশবাক্সে জমা নিশ্চিত করুন'}
                 </button>
                 <button type="button" className="btn gray" onClick={() => setShowAddCashModal(false)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Account & Balance Modal */}
+      {editingAccount && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '460px', maxWidth: '92%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0, color: '#ec4899' }}>📱 বিকাশ ব্যালেন্স ও অ্যাকাউন্ট এডিট</h3>
+              <button className="btn sm text gray" onClick={() => setEditingAccount(null)}>✕</button>
+            </div>
+
+            <form className="form-grid mt8" onSubmit={handleUpdateAccount}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>মোবাইল নম্বর *</label>
+                <input
+                  value={editAccNumber}
+                  onChange={(e) => setEditAccNumber(e.target.value)}
+                  placeholder="017xxxxxxxx"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>নাম / সিমের নোট (ঐচ্ছিক)</label>
+                <input
+                  value={editAccName}
+                  onChange={(e) => setEditAccName(e.target.value)}
+                  placeholder="যেমন: মালিকের সিম, দোকান..."
+                />
+              </div>
+
+              <div>
+                <label>অ্যাকাউন্ট টাইপ</label>
+                <select value={editAccType} onChange={(e) => setEditAccType(e.target.value)}>
+                  <option value="personal">👤 পার্সোনাল (Personal)</option>
+                  <option value="agent">🏪 এজেন্ট (Agent)</option>
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold', color: '#ec4899' }}>বর্তমান ডিজিটাল ব্যালেন্স (৳) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editAccBalance}
+                  onChange={(e) => setEditAccBalance(e.target.value)}
+                  placeholder="যেমন: ১৫০০০"
+                  style={{ fontSize: 18, fontWeight: 'bold', color: '#be185d', borderColor: '#f472b6' }}
+                  required
+                  autoFocus
+                />
+                <small style={{ color: '#9d174d', display: 'block', marginTop: 4 }}>
+                  💡 সিমে বর্তমানে প্রকৃতপক্ষে যত টাকা ব্যালেন্স আছে তা এখানে লিখে সংরক্ষণ করুন।
+                </small>
+              </div>
+
+              <div className="flex gap mt" style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                <button type="submit" className="btn pink" style={{ flex: 1, fontWeight: 'bold' }} disabled={loading}>
+                  {loading ? 'আপডেট হচ্ছে...' : '💾 ব্যালেন্স সংরক্ষণ করুন'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setEditingAccount(null)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Home Cash Edit Modal */}
+      {showDailyHomeCashModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '480px', maxWidth: '92%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0, color: '#1e40af' }}>
+                🏠 বাড়ি থেকে আনা ক্যাশ এডিট / সেট করুন
+              </h3>
+              <button className="btn sm text gray" onClick={() => setShowDailyHomeCashModal(false)}>✕</button>
+            </div>
+
+            <form className="form-grid mt8" onSubmit={handleSaveDailyHomeCash}>
+              <div style={{ gridColumn: '1 / -1', background: '#eff6ff', padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#1e40af' }}>
+                বর্তমান বাড়ি থেকে আনা ক্যাশ: <b>{taka(cashSummary.capitalFromHome || 0)}</b>
+                <br />
+                <span style={{ fontSize: 11.5, color: '#3b82f6' }}>
+                  প্রতিদিনের আনা টাকা সরাসরি পরিবর্তন করতে পারেন। এটি আজকের ক্যাশে সেট হয়ে যাবে।
+                </span>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontWeight: 'bold' }}>আজকের বাড়ি থেকে আনা টাকার পরিমাণ (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ৩০০০০"
+                  value={dailyHomeCashAmount}
+                  onChange={(e) => setDailyHomeCashAmount(e.target.value)}
+                  style={{ fontSize: 18, fontWeight: 'bold' }}
+                  required
+                  autoFocus
+                />
+                <div className="flex gap mt4" style={{ flexWrap: 'wrap' }}>
+                  {[10000, 20000, 30000, 50000, 100000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      className="btn sm"
+                      style={{ padding: '2px 8px', fontSize: 11, background: '#f1f5f9' }}
+                      onClick={() => setDailyHomeCashAmount(String(amt))}
+                    >
+                      ৳{amt.toLocaleString('en-IN')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label>বিবরণ / নোট</label>
+                <input
+                  value={dailyHomeCashDesc}
+                  onChange={(e) => setDailyHomeCashDesc(e.target.value)}
+                  placeholder="যেমন: আজকের ক্যাশ আনা"
+                />
+              </div>
+
+              <div className="flex gap mt" style={{ gridColumn: '1 / -1', marginTop: 8 }}>
+                <button
+                  type="submit"
+                  className="btn blue"
+                  style={{ flex: 1, fontWeight: 'bold' }}
+                  disabled={loading}
+                >
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '💾 আজকের ক্যাশ আপডেট করুন'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setShowDailyHomeCashModal(false)}>
                   বাতিল
                 </button>
               </div>

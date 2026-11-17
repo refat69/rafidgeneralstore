@@ -30,10 +30,19 @@ export default function DashboardPage() {
         <div className="empty mt">লোড হচ্ছে...</div>
       ) : (
         <>
-          <div className="grid cols-4 mt">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }} className="mt">
+            <div className="card" style={{ borderLeft: '4px solid #16a34a', background: '#f0fdf4' }}>
+              <div className="label" style={{ fontWeight: 'bold' }}>💰 আজকের মোট লাভ (Daily Profit)</div>
+              <div className={`value ${stats.todayProfit >= 0 ? 'green' : 'red'}`} style={{ fontSize: 28 }}>
+                {taka(stats.todayProfit)}
+              </div>
+              <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                পণ্য + রিচার্জ + বিকাশ লাভ − খরচ
+              </div>
+            </div>
             <div className="card" style={{ borderLeft: '4px solid #22c55e' }}>
               <div className="label">আজকের মোট বিক্রি (পণ্য + রিচার্জ)</div>
-              <div className="value green">{taka(stats.todaySales)}</div>
+              <div className="value green" style={{ fontSize: 28 }}>{taka(stats.todaySales)}</div>
               <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
                 পণ্য: {taka(stats.todayProductSales || 0)} • রিচার্জ: {taka(stats.todayRechargeSales || 0)}
               </div>

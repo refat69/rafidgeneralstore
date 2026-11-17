@@ -25,7 +25,13 @@ export default function ReportPage() {
       </div>
 
       <div className="grid cols-4">
-        <div className="card"><div className="label">মোট বিক্রি</div><div className="value blue">{taka(r.totalSales)}</div></div>
+        <div className="card">
+          <div className="label">মোট বিক্রি (পণ্য + রিচার্জ)</div>
+          <div className="value blue">{taka(r.totalSales)}</div>
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            পণ্য: {taka(r.productSales || 0)} • রিচার্জ: {taka(r.rechargeSales || 0)}
+          </div>
+        </div>
         <div className="card"><div className="label">মোট পণ্য খরচ (COGS)</div><div className="value">{taka(r.cogs)}</div></div>
         <div className="card"><div className="label">মোট খরচ</div><div className="value red">{taka(r.totalExpense)}</div></div>
         <div className="card"><div className="label">মোট লাভ (Net Profit)</div><div className={`value ${r.netProfit >= 0 ? 'green' : 'red'}`}>{taka(r.netProfit)}</div></div>
@@ -50,7 +56,9 @@ export default function ReportPage() {
         <div className="card">
           <h3>বিক্রি ও খরচ বিবরণ</h3>
           <div className="form-grid mt8" style={{ gap: 10, fontSize: 14.5 }}>
-            <div className="flex between"><span className="muted">মোট বিক্রি</span><b>{taka(r.totalSales)}</b></div>
+            <div className="flex between"><span className="muted">মোট বিক্রি (পণ্য + রিচার্জ)</span><b>{taka(r.totalSales)}</b></div>
+            <div className="flex between" style={{ fontSize: 13, paddingLeft: 10 }}><span className="muted">↳ পণ্য বিক্রি</span><span>{taka(r.productSales || 0)}</span></div>
+            <div className="flex between" style={{ fontSize: 13, paddingLeft: 10 }}><span className="muted">↳ মোবাইল রিচার্জ</span><span style={{ color: '#9333ea' }}>{taka(r.rechargeSales || 0)}</span></div>
             <div className="flex between"><span className="muted">মোট প্রদত্ত</span><b>{taka(r.totalPaid)}</b></div>
             <div className="flex between"><span className="muted">মোট বাকি (due)</span><b className="red">{taka(r.totalDue)}</b></div>
             <hr />

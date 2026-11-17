@@ -15,6 +15,17 @@ export default function CashPage() {
   const [formCategory, setFormCategory] = useState('বাড়ি থেকে আনা (বিকাশ ও মাল কেনা)');
   const [formDesc, setFormDesc] = useState('');
 
+  // Daily Home Cash Edit Modal
+  const [showDailyHomeCashModal, setShowDailyHomeCashModal] = useState(false);
+  const [dailyHomeCashAmount, setDailyHomeCashAmount] = useState('');
+  const [dailyHomeCashDesc, setDailyHomeCashDesc] = useState('আজকে বাড়ি থেকে আনা ক্যাশ');
+
+  // Transaction Edit Modal
+  const [editingTx, setEditingTx] = useState(null);
+  const [editTxAmount, setEditTxAmount] = useState('');
+  const [editTxDesc, setEditTxDesc] = useState('');
+  const [editTxCategory, setEditTxCategory] = useState('');
+
   useEffect(() => {
     loadData();
   }, []);
@@ -23,7 +34,76 @@ export default function CashPage() {
     fetch('/api/cash?t=' + Date.now())
       .then((r) => r.json())
       .then(setData)
-      .catch(() => {});
+      .catch(() => { });
+  }
+
+  function openDailyHomeCashModal() {
+    setDailyHomeCashAmount(data?.today?.todayCapitalFromHome ? String(data.today.todayCapitalFromHome) : '');
+    setDailyHomeCashDesc('আজকে বাড়ি থেকে আনা ক্যাশ');
+    setShowDailyHomeCashModal(true);
+  }
+
+  async function handleSaveDailyHomeCash(e) {
+    e.preventDefault();
+    const amt = Number(dailyHomeCashAmount);
+    if (isNaN(amt) || amt < 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/cash', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'set_daily_home_capital',
+        amount: amt,
+        description: dailyHomeCashDesc.trim() || 'আজকে বাড়ি থেকে আনা ক্যাশ',
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('বাড়ি থেকে আনা ক্যাশ আপডেট করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ আজকের বাড়ি থেকে আনা ক্যাশ সফলভাবে আপডেট হয়েছে!');
+    setShowDailyHomeCashModal(false);
+    loadData();
+  }
+
+  function openEditTxModal(tx) {
+    setEditingTx(tx);
+    setEditTxAmount(String(tx.amount || ''));
+    setEditTxDesc(tx.description || '');
+    setEditTxCategory(tx.category || '');
+  }
+
+  async function handleUpdateTx(e) {
+    e.preventDefault();
+    if (!editingTx) return;
+    const amt = Number(editTxAmount);
+    if (isNaN(amt) || amt < 0) {
+      toast.error('সঠিক টাকার পরিমাণ লিখুন');
+      return;
+    }
+    setLoading(true);
+    const res = await fetch('/api/cash', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editingTx._id,
+        amount: amt,
+        description: editTxDesc.trim(),
+        category: editTxCategory,
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      toast.error('লেনদেন আপডেট করতে সমস্যা হয়েছে');
+      return;
+    }
+    toast.success('✅ লেনদেন সফলভাবে আপডেট হয়েছে!');
+    setEditingTx(null);
+    loadData();
   }
 
   async function handleAddCashTx(e) {
@@ -128,10 +208,19 @@ export default function CashPage() {
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #2563eb' }}>
-          <div className="label">🏠 বাড়ি থেকে আনা মোট ক্যাশ</div>
+          <div className="flex between align-center">
+            <span className="label">🏠 বাড়ি থেকে আনা ক্যাশ</span>
+            <button
+              className="btn sm blue"
+              style={{ padding: '2px 8px', fontSize: 11 }}
+              onClick={openDailyHomeCashModal}
+            >
+              ✏️ পরিবর্তন
+            </button>
+          </div>
           <div className="value blue">{taka(summary.capitalFromHome)}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            বিকাশ ও মাল কেনার জন্য আনা প্রারম্ভিক মূলধন
+            আজকের আনা: <b>{taka(today.todayCapitalFromHome)}</b>
           </div>
         </div>
 
@@ -360,7 +449,19 @@ export default function CashPage() {
                       </b>
                     </td>
                     <td>
-                      <button className="btn sm red" onClick={() => handleDelete(t._id)}>🗑</button>
+                      <div className="flex gap" style={{ justifyContent: 'flex-end' }}>
+                        <button
+                          className="btn sm gray"
+                          style={{ padding: '2px 6px' }}
+                          title="এডিট করুন"
+                          onClick={() => openEditTxModal(t)}
+                        >
+                          ✏️
+                        </button>
+                        <button className="btn sm red" style={{ padding: '2px 6px' }} onClick={() => handleDelete(t._id)}>
+                          🗑
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -502,6 +603,155 @@ export default function CashPage() {
                   {loading ? 'সংরক্ষণ হচ্ছে...' : modalType === 'in' ? '➕ ক্যাশ জমা নিশ্চিত করুন' : '➖ ক্যাশ উত্তোলন নিশ্চিত করুন'}
                 </button>
                 <button type="button" className="btn gray" onClick={() => setModalType(null)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Home Cash Edit Modal */}
+      {showDailyHomeCashModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '480px', maxWidth: '92%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0, color: '#1e40af' }}>
+                🏠 বাড়ি থেকে আনা ক্যাশ এডিট / সেট করুন
+              </h3>
+              <button className="btn sm text gray" onClick={() => setShowDailyHomeCashModal(false)}>✕</button>
+            </div>
+
+            <form className="form-grid mt8" onSubmit={handleSaveDailyHomeCash}>
+              <div style={{ background: '#eff6ff', padding: '10px 14px', borderRadius: 8, fontSize: 13, color: '#1e40af' }}>
+                আজকের বর্তমান আনা ক্যাশ: <b>{taka(data?.today?.todayCapitalFromHome || 0)}</b>
+                <br />
+                <span style={{ fontSize: 11.5, color: '#3b82f6' }}>
+                  প্রতিদিনের আনা টাকা সরাসরি পরিবর্তন করতে পারেন। এটি আজকের ক্যাশে সেট হয়ে যাবে।
+                </span>
+              </div>
+
+              <div>
+                <label style={{ fontWeight: 'bold' }}>আজকের বাড়ি থেকে আনা টাকার পরিমাণ (৳) *</label>
+                <input
+                  type="number"
+                  placeholder="যেমন: ৩০০০০"
+                  value={dailyHomeCashAmount}
+                  onChange={(e) => setDailyHomeCashAmount(e.target.value)}
+                  style={{ fontSize: 18, fontWeight: 'bold' }}
+                  required
+                  autoFocus
+                />
+                <div className="flex gap mt4" style={{ flexWrap: 'wrap' }}>
+                  {[10000, 20000, 30000, 50000, 100000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      className="btn sm"
+                      style={{ padding: '2px 8px', fontSize: 11, background: '#f1f5f9' }}
+                      onClick={() => setDailyHomeCashAmount(String(amt))}
+                    >
+                      ৳{amt.toLocaleString('en-IN')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label>বিবরণ / নোট</label>
+                <input
+                  value={dailyHomeCashDesc}
+                  onChange={(e) => setDailyHomeCashDesc(e.target.value)}
+                  placeholder="যেমন: আজকের ক্যাশ আনা"
+                />
+              </div>
+
+              <div className="flex gap mt" style={{ marginTop: 8 }}>
+                <button
+                  type="submit"
+                  className="btn blue"
+                  style={{ flex: 1, fontWeight: 'bold' }}
+                  disabled={loading}
+                >
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '💾 আজকের ক্যাশ আপডেট করুন'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setShowDailyHomeCashModal(false)}>
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Specific Transaction Edit Modal */}
+      {editingTx && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+        >
+          <div className="card" style={{ width: '460px', maxWidth: '92%', background: '#fff' }}>
+            <div className="flex between align-center mb8">
+              <h3 style={{ margin: 0 }}>✏️ ক্যাশ এন্ট্রি এডিট করুন</h3>
+              <button className="btn sm text gray" onClick={() => setEditingTx(null)}>✕</button>
+            </div>
+
+            <form className="form-grid mt8" onSubmit={handleUpdateTx}>
+              <div>
+                <label>টাকার পরিমাণ (৳) *</label>
+                <input
+                  type="number"
+                  value={editTxAmount}
+                  onChange={(e) => setEditTxAmount(e.target.value)}
+                  style={{ fontSize: 17, fontWeight: 'bold' }}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label>ক্যাটাগরি</label>
+                <input
+                  value={editTxCategory}
+                  onChange={(e) => setEditTxCategory(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label>বিবরণ / নোট</label>
+                <input
+                  value={editTxDesc}
+                  onChange={(e) => setEditTxDesc(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap mt" style={{ marginTop: 8 }}>
+                <button
+                  type="submit"
+                  className="btn green"
+                  style={{ flex: 1, fontWeight: 'bold' }}
+                  disabled={loading}
+                >
+                  {loading ? 'সংরক্ষণ হচ্ছে...' : '💾 লেনদেন সেভ করুন'}
+                </button>
+                <button type="button" className="btn gray" onClick={() => setEditingTx(null)}>
                   বাতিল
                 </button>
               </div>
